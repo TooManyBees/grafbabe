@@ -1,0 +1,10 @@
+[package]
+name = "pview"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# httparse = "1.10.1"
+# mio = { version = "1.2.0", features = ["net", "os-poll"] }
+prometheus-scraper = { version = "0.1.2", default-features = false }
+rusqlite = { version = "0.40.1", features = ["array", "vtab"] }
