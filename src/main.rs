@@ -18,10 +18,12 @@ fn main() {
     f.read_to_string(&mut s).unwrap();
     let metrics = parse_prometheus(&s).unwrap();
 
-    let connection = Connection::open("./pview.db3").unwrap();
+    let mut connection = Connection::open("./pview.db3").unwrap();
+    connection.pragma_update(None, "journal_mode", "WAL").unwrap();
+    connection.pragma_update(None, "foreign_keys", "ON").unwrap();
     rusqlite::vtab::array::load_module(&connection).unwrap();
 
     database::init_database(&connection).unwrap();
 
-    database::store_snapshot(&connection, &metrics).unwrap();
+    database::store_snapshot(&mut connection, &metrics).unwrap();
 }
