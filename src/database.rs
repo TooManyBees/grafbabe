@@ -11,7 +11,7 @@ use std::time::SystemTime;
 
 struct SqlMetricType(MetricType);
 impl ToSql for SqlMetricType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput> {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
         let value: i64 = match self.0 {
             MetricType::Counter => 0,
             MetricType::Gauge => 1,
