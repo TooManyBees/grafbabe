@@ -29,26 +29,26 @@ impl ToSql for SqlMetricType {
 
 pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute(
-        "CREATE TABLE metrics (
+        "CREATE TABLE IF NOT EXISTS metrics (
             id INTEGER PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             kind INTEGER NOT NULL DEFAULT 0,
-            help TEXT,
-        );
-
-        CREATE UNIQUE INDEX metrics_by_name ON metrics(name);
-
-        CREATE TABLE values (
+            help TEXT
+        );",
+        (),
+    )?;
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS metrics_by_name ON metrics(name);", ())?;
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS metric_values (
             metric_id INTEGER NOT NULL,
             value INTEGER NOT NULL,
             labels TEXT,
-            timestamp BIGINT NOT NULL,
-        );
-
-        CREATE INDEX values_by_metric_id ON values(metric_id);
-        CREATE INDEX values_by_timestamp ON values(timestamp);",
+            timestamp BIGINT NOT NULL
+        );",
         (),
     )?;
+    connection.execute("CREATE INDEX IF NOT EXISTS metric_values_by_metric_id ON metric_values(metric_id);", ())?;
+    connection.execute("CREATE INDEX IF NOT EXISTS metric_values_by_timestamp ON metric_values(timestamp);", ())?;
 
     Ok(())
 }
