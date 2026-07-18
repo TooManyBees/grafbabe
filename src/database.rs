@@ -69,27 +69,32 @@ pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
 }
 
 fn get_known_metrics<'a>(
-    connection: &Connection,
+    connection: &mut Connection,
     metrics: &[MetricFamily<'a>],
 ) -> rusqlite::Result<HashMap<Cow<'a, str>, i64>> {
-    let metric_names: Vec<_> = metrics
-        .iter()
-        .map(|family| Value::from(family.name.clone().into_owned()))
-        .collect();
-    let mut statement = connection.prepare(
-        "SELECT name, id
-        FROM metrics
-        WHERE name IN rarray(?1);",
-    )?;
-    let mut rows = statement.query([Rc::new(metric_names)])?;
-    let mut known_metrics = HashMap::with_capacity(metrics.len());
-    while let Some(row) = rows.next()? {
-        let name: String = row.get(0)?;
-        let index: i64 = row.get(1)?;
-        known_metrics.insert(Cow::from(name), index);
-    }
+    let mut known_metrics = {
+        let metric_names: Vec<_> = metrics
+            .iter()
+            .map(|family| Value::from(family.name.clone().into_owned()))
+            .collect();
+        let mut statement = connection.prepare(
+            "SELECT name, id
+            FROM metrics
+            WHERE name IN rarray(?1);",
+        )?;
+        let mut rows = statement.query([Rc::new(metric_names)])?;
+        let mut known_metrics = HashMap::with_capacity(metrics.len());
+        while let Some(row) = rows.next()? {
+            let name: String = row.get(0)?;
+            let index: i64 = row.get(1)?;
+            known_metrics.insert(Cow::from(name), index);
+        }
+        known_metrics
+    };
 
-    let mut insert_statement = connection.prepare(
+    let transaction = connection.transaction()?;
+
+    let mut insert_statement = transaction.prepare(
         "INSERT INTO metrics (name, kind, help)
         VALUES (?, ?, ?)
         RETURNING id;",
@@ -109,6 +114,10 @@ fn get_known_metrics<'a>(
             )?;
         }
     }
+
+    std::mem::drop(insert_statement);
+
+    transaction.commit()?;
 
     Ok(known_metrics)
 }
