@@ -17,7 +17,7 @@ pub fn handle_http(
     let len = stream.read(buf).map_err(HttpError::Receive)?;
     let mut http_headers = [EMPTY_HEADER; 24];
     let mut req = Request::new(&mut http_headers);
-    let body_offset = match req.parse(&buf[..len]).map_err(HttpError::Parse)? {
+    let _body_offset = match req.parse(&buf[..len]).map_err(HttpError::Parse)? {
         Status::Complete(offset) => offset,
         Status::Partial => {
             empty_http_response(stream, StatusCode::BAD_REQUEST).map_err(HttpError::Respond)?;
