@@ -29,6 +29,14 @@ impl ToSql for SqlMetricType {
     }
 }
 
+pub fn get_connection(path: &str) -> rusqlite::Result<Connection> {
+    let mut connection = Connection::open(path)?;
+    connection.pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "foreign_keys", "ON")?;
+    rusqlite::vtab::array::load_module(&connection)?;
+    Ok(connection)
+}
+
 pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute(
         "CREATE TABLE IF NOT EXISTS metrics (
