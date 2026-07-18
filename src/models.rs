@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
 pub struct Series {
     pub name: String,
     pub label: Option<String>,
@@ -20,7 +22,7 @@ impl Series {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Metrics {
     pub timestamps: Vec<i64>,
     pub series: Vec<Series>,
