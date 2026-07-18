@@ -1,8 +1,8 @@
-use prometheus_scraper::borrowed::{MetricFamily, MetricValue, Counter};
+use prometheus_scraper::borrowed::{Counter, MetricFamily, MetricValue};
 use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{
     Connection,
-    types::{ToSql, ToSqlOutput, Value, Null},
+    types::{Null, ToSql, ToSqlOutput, Value},
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -38,7 +38,10 @@ pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
         ) STRICT;",
         (),
     )?;
-    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS metrics_by_name ON metrics(name);", ())?;
+    connection.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS metrics_by_name ON metrics(name);",
+        (),
+    )?;
 
     connection.execute(
         "CREATE TABLE IF NOT EXISTS events (
@@ -57,7 +60,10 @@ pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
         ) STRICT;",
         (),
     )?;
-    connection.execute("CREATE INDEX IF NOT EXISTS metric_values_by_event_id ON metric_values(event_id);", ())?;
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS metric_values_by_event_id ON metric_values(event_id);",
+        (),
+    )?;
 
     Ok(())
 }
@@ -107,8 +113,13 @@ fn get_known_metrics<'a>(
     Ok(known_metrics)
 }
 
-pub fn store_snapshot(connection: &mut Connection, snapshot: &[MetricFamily]) -> rusqlite::Result<()> {
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("I'm not interested in running before 1970");
+pub fn store_snapshot(
+    connection: &mut Connection,
+    snapshot: &[MetricFamily],
+) -> rusqlite::Result<()> {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("I'm not interested in running before 1970");
     let timestamp = now.as_millis() as i64;
 
     let known_metrics = get_known_metrics(connection, snapshot)?;
@@ -119,7 +130,7 @@ pub fn store_snapshot(connection: &mut Connection, snapshot: &[MetricFamily]) ->
         let mut insert_event_statement = transaction.prepare(
             "INSERT INTO events (timestamp)
             VALUES (?)
-            RETURNING id;"
+            RETURNING id;",
         )?;
 
         insert_event_statement.query_one((timestamp,), |row| row.get(0))?
@@ -127,7 +138,7 @@ pub fn store_snapshot(connection: &mut Connection, snapshot: &[MetricFamily]) ->
 
     let mut insert_statement = transaction.prepare(
         "INSERT INTO metric_values (metric_id, event_id, value, labels)
-        VALUES (?, ?, ?, ?);"
+        VALUES (?, ?, ?, ?);",
     )?;
 
     for family in snapshot {
@@ -135,8 +146,14 @@ pub fn store_snapshot(connection: &mut Connection, snapshot: &[MetricFamily]) ->
 
         for metric in &family.metric {
             let value = match metric.value {
-                MetricValue::Counter(Counter { value: UnsignedNumber::Uint(n), .. }) => n as i64,
-                MetricValue::Counter(Counter { value: UnsignedNumber::Float(f), .. }) => f as i64,
+                MetricValue::Counter(Counter {
+                    value: UnsignedNumber::Uint(n),
+                    ..
+                }) => n as i64,
+                MetricValue::Counter(Counter {
+                    value: UnsignedNumber::Float(f),
+                    ..
+                }) => f as i64,
                 MetricValue::Gauge(Number::Int(n)) => n,
                 MetricValue::Gauge(Number::Float(f)) => f as i64,
                 MetricValue::Untyped(Number::Int(n)) => n,
@@ -186,12 +203,12 @@ const TOTAL_SAMPLES_DAY: usize = TOTAL_SAMPLES_1H * 24;
 const TOTAL_SAMPLES_WEEK: usize = TOTAL_SAMPLES_DAY * 7;
 const TOTAL_SAMPLES_MONTH: usize = TOTAL_SAMPLES_DAY * 30;
 
-pub fn get_event_indices_for_window(connection: &Connection, num_samples: usize, window: Window) -> rusqlite::Result<Vec<i64>> {
-    let max_id: i64 = connection.query_one(
-        "SELECT MAX(id) FROM events;",
-        (),
-        |row| row.get(0),
-    )?;
+pub fn get_event_indices_for_window(
+    connection: &Connection,
+    num_samples: usize,
+    window: Window,
+) -> rusqlite::Result<Vec<i64>> {
+    let max_id: i64 = connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))?;
 
     let total_samples_window = match window {
         Window::QuerterHour => TOTAL_SAMPLES_15M,
@@ -212,12 +229,12 @@ pub fn get_event_indices_for_window(connection: &Connection, num_samples: usize,
         let id_f = max_id as f32 - offset as f32 * sample_rate;
         let id = id_f.round() as i64;
         if id <= 0 {
-            break
+            break;
         }
         ids.push(id);
     }
 
-    ids.dedup();
-    ids.reverse();
+    ids.dedup(); // Multiple sample points might round to the same integer index
+    ids.reverse(); // Sort in ascending order
     Ok(ids)
 }
