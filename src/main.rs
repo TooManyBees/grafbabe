@@ -1,4 +1,5 @@
 mod database;
+mod http_handler;
 mod models;
 
 use crate::models::Window;
