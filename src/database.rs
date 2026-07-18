@@ -161,7 +161,7 @@ pub fn store_snapshot(
                 _ => panic!("Unsupported metric to insert"),
             };
 
-            insert_statement.execute((metric_id, value, Null, timestamp))?;
+            insert_statement.execute((metric_id, event_id, value, Null))?;
         }
     }
 
