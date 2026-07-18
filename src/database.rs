@@ -163,3 +163,61 @@ pub fn prune_old_metrics(connection: &Connection) -> rusqlite::Result<usize> {
 
     statement.execute((ONE_MONTH_MILLIS,))
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum Window {
+    QuerterHour,
+    HalfHour,
+    Hour,
+    Hour4,
+    Hour12,
+    Day,
+    Week,
+    Month,
+}
+
+const EVENT_DURATION_MINS: usize = 1;
+const TOTAL_SAMPLES_15M: usize = 15 / EVENT_DURATION_MINS;
+const TOTAL_SAMPLES_30M: usize = 30 / EVENT_DURATION_MINS;
+const TOTAL_SAMPLES_1H: usize = 60 / EVENT_DURATION_MINS;
+const TOTAL_SAMPLES_4H: usize = TOTAL_SAMPLES_1H * 4;
+const TOTAL_SAMPLES_12H: usize = TOTAL_SAMPLES_1H * 12;
+const TOTAL_SAMPLES_DAY: usize = TOTAL_SAMPLES_1H * 24;
+const TOTAL_SAMPLES_WEEK: usize = TOTAL_SAMPLES_DAY * 7;
+const TOTAL_SAMPLES_MONTH: usize = TOTAL_SAMPLES_DAY * 30;
+
+pub fn get_event_indices_for_window(connection: &Connection, num_samples: usize, window: Window) -> rusqlite::Result<Vec<i64>> {
+    let max_id: i64 = connection.query_one(
+        "SELECT MAX(id) FROM events;",
+        (),
+        |row| row.get(0),
+    )?;
+
+    let total_samples_window = match window {
+        Window::QuerterHour => TOTAL_SAMPLES_15M,
+        Window::HalfHour => TOTAL_SAMPLES_30M,
+        Window::Hour => TOTAL_SAMPLES_1H,
+        Window::Hour4 => TOTAL_SAMPLES_4H,
+        Window::Hour12 => TOTAL_SAMPLES_12H,
+        Window::Day => TOTAL_SAMPLES_DAY,
+        Window::Week => TOTAL_SAMPLES_WEEK,
+        Window::Month => TOTAL_SAMPLES_MONTH,
+    };
+    let min_id = std::cmp::max(0, max_id - total_samples_window as i64);
+
+    let sample_rate: f32 = total_samples_window as f32 / num_samples as f32;
+
+    let mut ids = Vec::with_capacity(num_samples);
+    for offset in 0..num_samples {
+        let id_f = max_id as f32 - offset as f32 * sample_rate;
+        let id = id_f.round() as i64;
+        if id <= 0 {
+            break
+        }
+        ids.push(id);
+    }
+
+    ids.dedup();
+    ids.reverse();
+    Ok(ids)
+}
