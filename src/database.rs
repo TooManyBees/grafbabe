@@ -1,4 +1,4 @@
-use prometheus_scraper::borrowed::{Counter, MetricFamily, MetricValue};
+use prometheus_scraper::borrowed::{Counter, LabelPair, MetricFamily, MetricValue};
 use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{
     Connection,
@@ -44,6 +44,18 @@ pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
     )?;
 
     connection.execute(
+        "CREATE TABLE IF NOT EXISTS labels (
+            id INTEGER PRIMARY KEY,
+            label TEXT NOT NULL
+        ) STRICT;",
+        (),
+    )?;
+    connection.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS labels_by_label ON labels(label);",
+        (),
+    )?;
+
+    connection.execute(
         "CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY,
             timestamp INTEGER NOT NULL
@@ -54,9 +66,9 @@ pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute(
         "CREATE TABLE IF NOT EXISTS metric_values (
             metric_id INTEGER NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
+            label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE,
             event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-            value INTEGER NOT NULL,
-            labels TEXT
+            value INTEGER NOT NULL
         ) STRICT;",
         (),
     )?;
@@ -122,6 +134,91 @@ fn get_known_metrics<'a>(
     Ok(known_metrics)
 }
 
+fn labels_to_db(labels: &[LabelPair]) -> Option<String> {
+    if labels.is_empty() {
+        return None;
+    }
+
+    let mut parts: Vec<_> = labels
+        .iter()
+        .map(|l| format!("{}={}", l.name, l.value))
+        .collect();
+    parts.sort();
+
+    Some(parts.join(","))
+}
+
+pub fn get_known_labels<'a>(
+    connection: &mut Connection,
+    metrics: &[MetricFamily<'a>],
+) -> rusqlite::Result<HashMap<String, i64>> {
+    // let mut label_identifiers: HashMap<&'a [LabelPair<'a>], String> = HashMap::new();
+    // for family in metrics.iter() {
+    //     for metric in family.metric.iter() {
+    //         if metric.label.is_empty() {
+    //             continue;
+    //         }
+    //         if &label_identifiers.contains_key(&metric.label) {
+    //             label_identifiers.insert(metric_label, labels_to_db(&metric.label));
+    //         }
+    //     }
+    // }
+
+    let label_strings: Vec<_> = metrics
+        .iter()
+        .flat_map(|family| {
+            family
+                .metric
+                .iter()
+                .filter_map(|metric| labels_to_db(&metric.label))
+        })
+        .collect();
+    let label_values = Rc::new(
+        label_strings
+            .iter()
+            .map(|l| Value::from(l.clone()))
+            .collect::<Vec<_>>(),
+    );
+
+    let mut known_labels = {
+        let mut statement = connection.prepare(
+            "SELECT label, id
+            FROM labels
+            WHERE label IN rarray(?1);",
+        )?;
+        let mut rows = statement.query([label_values])?;
+        let mut known_labels = HashMap::with_capacity(label_strings.len());
+        while let Some(row) = rows.next()? {
+            let label: String = row.get(0)?;
+            let id: i64 = row.get(1)?;
+            known_labels.insert(label, id);
+        }
+        known_labels
+    };
+
+    let transaction = connection.transaction()?;
+
+    let mut insert_statement = transaction.prepare(
+        "INSERT INTO labels (label)
+        VALUES (?)
+        RETURNING id;",
+    )?;
+    for label_string in label_strings.into_iter() {
+        if !known_labels.contains_key(&label_string) {
+            insert_statement.query_one([label_string.clone()], |row| {
+                known_labels.insert(label_string, row.get(0)?);
+                Ok(())
+            })?;
+        }
+    }
+
+    std::mem::drop(insert_statement);
+
+    transaction.commit()?;
+
+    Ok(known_labels)
+}
+
 pub fn store_snapshot(
     connection: &mut Connection,
     snapshot: &[MetricFamily],
@@ -132,6 +229,7 @@ pub fn store_snapshot(
     let timestamp = now.as_millis() as i64;
 
     let known_metrics = get_known_metrics(connection, snapshot)?;
+    let known_labels = get_known_labels(connection, snapshot)?;
 
     let transaction = connection.transaction()?;
 
@@ -146,7 +244,7 @@ pub fn store_snapshot(
     };
 
     let mut insert_statement = transaction.prepare(
-        "INSERT INTO metric_values (metric_id, event_id, value, labels)
+        "INSERT INTO metric_values (metric_id, label_id, event_id, value)
         VALUES (?, ?, ?, ?);",
     )?;
 
@@ -170,7 +268,9 @@ pub fn store_snapshot(
                 _ => panic!("Unsupported metric to insert"),
             };
 
-            insert_statement.execute((metric_id, event_id, value, Null))?;
+            let label_id = labels_to_db(&metric.label).map(|string| known_labels[&string]);
+
+            insert_statement.execute((metric_id, label_id, event_id, value))?;
         }
     }
 
