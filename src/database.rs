@@ -149,7 +149,7 @@ fn labels_to_db(labels: &[LabelPair]) -> Option<String> {
     Some(parts.join(","))
 }
 
-pub fn get_known_labels<'a>(
+fn get_known_labels<'a>(
     connection: &mut Connection,
     metrics: &[MetricFamily<'a>],
 ) -> rusqlite::Result<HashMap<String, i64>> {
@@ -291,7 +291,7 @@ pub fn prune_old_metrics(connection: &Connection) -> rusqlite::Result<usize> {
     statement.execute((ONE_MONTH_MILLIS,))
 }
 
-pub fn get_event_indices_for_window(
+fn get_event_indices_for_window(
     connection: &Connection,
     num_samples: usize,
     window: Window,
