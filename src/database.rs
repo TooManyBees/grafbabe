@@ -1,8 +1,9 @@
+use crate::models::{Metrics, Series, Window};
 use prometheus_scraper::borrowed::{Counter, LabelPair, MetricFamily, MetricValue};
 use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{
     Connection,
-    types::{Null, ToSql, ToSqlOutput, Value},
+    types::{ToSql, ToSqlOutput, Value},
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -290,28 +291,6 @@ pub fn prune_old_metrics(connection: &Connection) -> rusqlite::Result<usize> {
     statement.execute((ONE_MONTH_MILLIS,))
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum Window {
-    QuerterHour,
-    HalfHour,
-    Hour,
-    Hour4,
-    Hour12,
-    Day,
-    Week,
-    Month,
-}
-
-const EVENT_DURATION_MINS: usize = 1;
-const TOTAL_SAMPLES_15M: usize = 15 / EVENT_DURATION_MINS;
-const TOTAL_SAMPLES_30M: usize = 30 / EVENT_DURATION_MINS;
-const TOTAL_SAMPLES_1H: usize = 60 / EVENT_DURATION_MINS;
-const TOTAL_SAMPLES_4H: usize = TOTAL_SAMPLES_1H * 4;
-const TOTAL_SAMPLES_12H: usize = TOTAL_SAMPLES_1H * 12;
-const TOTAL_SAMPLES_DAY: usize = TOTAL_SAMPLES_1H * 24;
-const TOTAL_SAMPLES_WEEK: usize = TOTAL_SAMPLES_DAY * 7;
-const TOTAL_SAMPLES_MONTH: usize = TOTAL_SAMPLES_DAY * 30;
-
 pub fn get_event_indices_for_window(
     connection: &Connection,
     num_samples: usize,
@@ -319,19 +298,7 @@ pub fn get_event_indices_for_window(
 ) -> rusqlite::Result<Vec<i64>> {
     let max_id: i64 = connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))?;
 
-    let total_samples_window = match window {
-        Window::QuerterHour => TOTAL_SAMPLES_15M,
-        Window::HalfHour => TOTAL_SAMPLES_30M,
-        Window::Hour => TOTAL_SAMPLES_1H,
-        Window::Hour4 => TOTAL_SAMPLES_4H,
-        Window::Hour12 => TOTAL_SAMPLES_12H,
-        Window::Day => TOTAL_SAMPLES_DAY,
-        Window::Week => TOTAL_SAMPLES_WEEK,
-        Window::Month => TOTAL_SAMPLES_MONTH,
-    };
-    let min_id = std::cmp::max(0, max_id - total_samples_window as i64);
-
-    let sample_rate: f32 = total_samples_window as f32 / num_samples as f32;
+    let sample_rate: f32 = window.total_samples() as f32 / num_samples as f32;
 
     let mut ids = Vec::with_capacity(num_samples);
     for offset in 0..num_samples {
@@ -346,4 +313,82 @@ pub fn get_event_indices_for_window(
     ids.dedup(); // Multiple sample points might round to the same integer index
     ids.reverse(); // Sort in ascending order
     Ok(ids)
+}
+
+pub fn get_events(
+    connection: &Connection,
+    num_samples: usize,
+    window: Window,
+) -> rusqlite::Result<Metrics> {
+    let event_ids = get_event_indices_for_window(connection, num_samples, window)?;
+    let num_events = event_ids.len();
+    let event_ids: Vec<_> = event_ids.into_iter().map(|id| Value::from(id)).collect();
+    let event_ids = Rc::new(event_ids);
+
+    let timestamps: Vec<i64> = {
+        let mut statement = connection.prepare(
+            "SELECT timestamp
+            FROM events
+            WHERE id IN rarray(?1)
+            ORDER BY id;",
+        )?;
+        let rows = statement.query_map([event_ids.clone()], |row| row.get(0))?;
+        let mut ts = Vec::with_capacity(num_events);
+        for row in rows {
+            ts.push(row?);
+        }
+        ts
+    };
+
+    let metric_ids: HashMap<(i64, Option<i64>), (String, Option<String>)> = {
+        let mut statement = connection.prepare(
+            "SELECT DISTINCT metrics.id AS metric_id, metrics.name AS metric_name, labels.id AS label_id, labels.label AS label
+            FROM metric_values
+            INNER JOIN metrics ON metric_values.metric_id = metrics.id
+            LEFT JOIN labels ON metric_values.label_id = labels.id
+            INNER JOIN events ON metric_values.event_id = events.id
+            WHERE events.id IN rarray(?1);"
+        )?;
+        let mut rows = statement.query([event_ids.clone()])?;
+        let mut metric_ids: HashMap<(i64, Option<i64>), (String, Option<String>)> = HashMap::new();
+        while let Some(row) = rows.next()? {
+            let metric_id: i64 = row.get(0)?;
+            let metric_name: String = row.get(1)?;
+            let label_id: Option<i64> = row.get(2)?;
+            let label_name: Option<String> = row.get(3)?;
+            metric_ids.insert((metric_id, label_id), (metric_name, label_name));
+        }
+        metric_ids
+    };
+
+    let series: Vec<_> = {
+        let mut statement = connection.prepare(
+            "SELECT metric_id, label_id, events.timestamp, value
+            FROM events
+            LEFT JOIN metric_values ON events.id = metric_values.event_id
+            INNER JOIN metrics ON metrics.id = metric_values.metric_id
+            WHERE event_id IN rarray(?1)
+            ORDER BY timestamp;",
+        )?;
+        let mut rows = statement.query([event_ids])?;
+
+        let mut events: HashMap<(String, Option<String>), Series> = HashMap::new();
+
+        while let Some(row) = rows.next()? {
+            let metric_id: i64 = row.get(0)?;
+            let label_id: Option<i64> = row.get(1)?;
+            let value: Option<i64> = row.get(2)?;
+
+            let (metric_name, label_name) = metric_ids[&(metric_id, label_id)].clone();
+
+            events
+                .entry((metric_name.clone(), label_name.clone()))
+                .or_insert_with(|| Series::new(metric_name, label_name, num_events))
+                .push(value);
+        }
+
+        events.into_values().collect()
+    };
+
+    Ok(Metrics { timestamps, series })
 }

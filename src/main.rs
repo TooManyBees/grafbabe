@@ -1,12 +1,12 @@
 mod database;
+mod models;
 
-use std::fs::File;
-use std::io::Read;
-
+use crate::models::Window;
 use prometheus_scraper::borrowed::MetricFamily;
 use prometheus_scraper::{Format, ParseError, TextFormat, parse_payload};
-
 use rusqlite::Connection;
+use std::fs::File;
+use std::io::Read;
 
 fn parse_prometheus<'a>(s: &'a str) -> Result<Vec<MetricFamily<'a>>, ParseError> {
     parse_payload(s.as_bytes(), Format::Text(TextFormat::Prometheus)).collect()
