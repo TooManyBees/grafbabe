@@ -98,14 +98,17 @@ fn get_event_indices_for_window(
         }) {
             Ok(pair) => pair,
             Err(rusqlite::Error::QueryReturnedNoRows) => {
+                log::warn!("No events in database yet");
                 return Ok(vec![]);
             }
             Err(e) => return Err(e),
         };
     let min_timestamp = now_ms() - window.as_ms();
     if min_timestamp > max_timestamp {
+        log::warn!("Search window is newer than newest event");
         return Ok(vec![]);
     }
+    log::debug!(max_id, max_timestamp, min_timestamp; "Found search window");
     let min_id: i64 = connection.query_one(
         "SELECT MIN(id) FROM events WHERE timestamp >= ?",
         [min_timestamp],

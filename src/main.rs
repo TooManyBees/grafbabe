@@ -1,6 +1,8 @@
 mod database;
 mod http_handler;
+mod logger;
 mod models;
+mod time;
 
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
 use prometheus_scraper::{Format, ParseError, TextFormat, borrowed::MetricFamily, parse_payload};
@@ -36,6 +38,8 @@ impl fmt::Display for SeedError {
 }
 
 fn seed_database(connection: &mut Connection) -> Result<(), SeedError> {
+    log::info!("Seeding database");
+    // TODO: accept arbitrary text file
     let mut f = File::open("./prometheus.txt").map_err(SeedError::IO)?;
     let mut s = String::new();
     f.read_to_string(&mut s).map_err(SeedError::IO)?;
@@ -43,7 +47,7 @@ fn seed_database(connection: &mut Connection) -> Result<(), SeedError> {
 
     // for n in 0..(30 * 24 * 60) {
     //     if n % 100 == 0 {
-    //         println!("{n}");
+    //         log::debug!("Seed progress: {n}");
     //     }
         database::store_snapshot(connection, &metrics).map_err(SeedError::DB)?;
     // }
@@ -54,10 +58,10 @@ fn seed_database(connection: &mut Connection) -> Result<(), SeedError> {
 fn bind_http_listener(port: u16) -> std::io::Result<TcpListener> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let http_listener = TcpListener::bind(addr).map_err(|err| {
-        // log error
+        log::error!("Error listening on {addr}: {err}");
         err
     })?;
-    // log listening
+    log::info!("Listening on {addr}");
     Ok(http_listener)
 }
 
@@ -71,7 +75,7 @@ fn background_loop(waker: Waker) {
         loop {
             thread::sleep(BACKGROUND_LOOP_DURATION);
             if let Err(e) = waker.wake() {
-                println!("Error waking up main thread: {}", e);
+                log::error!("Error waking up main thread: {e}");
             }
         }
     });
@@ -113,11 +117,13 @@ fn main_loop(mut connection: Connection) -> Result<(), Box<dyn std::error::Error
                         if let Err(error) =
                             http_handler::handle_http(stream, &mut buf, &mut connection)
                         {
-                            // TODO log error
+                            log::error!("{error}");
                         }
                     }
                 }
-                TOKEN_PULL_METRICS => pull_metrics(&mut connection),
+                TOKEN_PULL_METRICS => if let Err(error) = pull_metrics(&mut connection) {
+                    log::error!("{error}");
+                }
                 _ => {}
             }
         }
@@ -132,28 +138,46 @@ fn accept_tcp(listener: &TcpListener) -> Option<TcpStream> {
         Ok(stream) => Some(stream),
         Err(ref e) if e.kind() == ErrorKind::WouldBlock => None,
         Err(error) => {
-            // TODO log error
+            log::error!("Error accepting connection: {error}");
             None
         }
     }
 }
 
-fn pull_metrics(connection: &mut Connection) {
-    eprintln!("TODO: pull some metrics!");
+fn pull_metrics(_connection: &mut Connection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    log::debug!("TODO: pull some metrics!");
+
+    // TODO make request to prometheus endpoint
+    // TODO parse body
+    // TODO store snapshot
+    // TODO prune old events
+
+    Ok(())
 }
 
 fn main() {
+    logger::init_logger(log::Level::Debug);
+
     let mut connection = database::get_connection("./pview.db3").unwrap();
     database::init_database(&connection).unwrap();
 
     match std::env::args().skip(1).next().as_deref() {
-        Some("seed") => seed_database(&mut connection).unwrap(),
-        Some("serve") => main_loop(connection).unwrap(),
+        Some("seed") => {
+            if let Err(e) = seed_database(&mut connection) {
+                log::error!("Aborted database seed: {e}");
+                std::process::exit(1);
+            }
+        }
+        None | Some("serve") => {
+            if let Err(e) = main_loop(connection) {
+                log::error!("Aborted main loop: {e}");
+                std::process::exit(1);
+            }
+        }
         Some(cmd) => {
             eprintln!("Unrecognized command {}", cmd);
             std::process::exit(1);
         }
-        None => main_loop(connection).unwrap(),
     }
 }
 

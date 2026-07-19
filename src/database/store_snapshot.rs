@@ -60,7 +60,14 @@ pub fn store_snapshot(
 
     std::mem::drop(insert_statement);
 
-    transaction.commit()
+    transaction.commit()?;
+
+    let num_metrics = snapshot.len();
+    let num_datapoints = snapshot.iter().fold(0, |sum, family| sum + family.metric.len());
+
+    log::debug!(timestamp, event_id; "Stored snapshot: {} data points for {} metrics", num_datapoints, num_metrics);
+
+    Ok(())
 }
 
 fn get_known_metrics<'a>(

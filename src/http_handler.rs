@@ -2,17 +2,22 @@ use crate::database::get_metrics;
 use crate::models::Window;
 use httparse::{EMPTY_HEADER, Request, Status};
 use rusqlite::Connection;
-use std::fmt;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::path::Path;
+use std::{
+    fmt,
+    fs::File,
+    io::{Read, Write},
+    net::TcpStream,
+    path::Path,
+    time::Instant,
+};
 
 pub fn handle_http(
     mut stream: TcpStream,
     buf: &mut [u8],
     connection: &mut Connection,
 ) -> Result<(), HttpError> {
+    let start_time = Instant::now();
+
     let len = stream.read(buf).map_err(HttpError::Receive)?;
     let mut http_headers = [EMPTY_HEADER; 24];
     let mut req = Request::new(&mut http_headers);
@@ -45,7 +50,8 @@ pub fn handle_http(
 
     match result {
         Ok(status_code) => {
-            // TODO log something
+            let elapsed_ms = Instant::now().duration_since(start_time).as_millis();
+            log::info!(method, path, status_code:%, elapsed_ms; "Served response");
             Ok(())
         }
         Err(e) => Err(HttpError::Respond(e)),
