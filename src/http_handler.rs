@@ -3,7 +3,6 @@ use crate::models::Window;
 use httparse::{EMPTY_HEADER, Request, Status};
 use rusqlite::Connection;
 use std::fmt;
-
 use std::fs::File;
 use std::io::{Read, Write};
 use std::net::TcpStream;
