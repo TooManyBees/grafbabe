@@ -1,4 +1,4 @@
-use crate::database::get_events;
+use crate::database::get_metrics;
 use crate::models::Window;
 use httparse::{EMPTY_HEADER, Request, Status};
 use rusqlite::Connection;
@@ -39,7 +39,7 @@ pub fn handle_http(
         ("GET", "/", _) => serve_file(stream, "./data/dashboard.html"),
         ("GET", "/chart.umd.min.js", _) => serve_file(stream, "./data/chart.umd.min.js"),
         ("GET", "/chart.umd.min.js.map", _) => serve_file(stream, "./data/chart.umd.min.js.map"),
-        ("GET", "/metrics", query) => Ok(get_metrics(stream, query, connection)?),
+        ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection)?),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
     };
 
@@ -111,7 +111,7 @@ fn get_queryparam<'a, 'b>(params: Option<&[(&str, &'a str)]>, target: &'b str) -
     })
 }
 
-fn get_metrics(
+fn serve_metrics(
     mut stream: TcpStream,
     query: Option<&str>,
     connection: &mut Connection,
@@ -146,8 +146,8 @@ fn get_metrics(
         }
     };
 
-    let events = get_events(connection, num_samples, window).map_err(HttpError::Database)?;
-    let json = serde_json::to_string(&events).map_err(HttpError::Serde)?;
+    let metrics = get_metrics(connection, num_samples, window).map_err(HttpError::Database)?;
+    let json = serde_json::to_string(&metrics).map_err(HttpError::Serde)?;
     let status_code = StatusCode::OK;
 
     stream.write_fmt(format_args!(
