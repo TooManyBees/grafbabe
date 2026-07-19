@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::time::Duration;
 
 #[derive(Debug, Serialize)]
 pub struct Series {
@@ -62,5 +63,20 @@ impl Window {
             Window::Week => TOTAL_SAMPLES_WEEK,
             Window::Month => TOTAL_SAMPLES_MONTH,
         }
+    }
+
+    pub fn as_ms(self) -> i64 {
+        let duration = match self {
+            Window::QuarterHour => Duration::from_mins(15),
+            Window::HalfHour => Duration::from_mins(30),
+            Window::Hour => Duration::from_hours(1),
+            Window::Hour4 => Duration::from_hours(4),
+            Window::Hour12 => Duration::from_hours(12),
+            Window::Day => Duration::from_hours(24),
+            Window::Week => Duration::from_hours(24) * 7,
+            Window::Month => Duration::from_hours(24) * 30,
+        };
+
+        duration.as_millis() as i64
     }
 }

@@ -236,10 +236,7 @@ pub fn store_snapshot(
     connection: &mut Connection,
     snapshot: &[MetricFamily],
 ) -> rusqlite::Result<()> {
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .expect("I'm not interested in running before 1970");
-    let timestamp = now.as_millis() as i64;
+    let timestamp = now_ms();
 
     let known_metrics = get_known_metrics(connection, snapshot)?;
     let known_labels = get_known_labels(connection, snapshot)?;
@@ -308,12 +305,25 @@ fn get_event_indices_for_window(
     num_samples: usize,
     window: Window,
 ) -> rusqlite::Result<Vec<i64>> {
-    let max_id: i64 = match connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))? {
-        Some(max_id) => max_id,
-        None => {
-            return Ok(vec![]);
-        }
-    };
+    let max_id: i64 =
+        match connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))? {
+            Some(max_id) => max_id,
+            None => {
+                return Ok(vec![]);
+            }
+        };
+    let min_timestamp = now_ms() - window.as_ms();
+    let min_id: i64 = connection.query_one(
+        "SELECT MIN(id) FROM events WHERE timestamp >= ?",
+        [min_timestamp],
+        |row| row.get(0),
+    )?; // TODO: log a reason why it's an error if this query returns null
+
+    // If there are as many or fewer samples than desired in the window,
+    // just return that exact range.
+    if max_id - min_id + 1 <= num_samples as i64 {
+        return Ok((min_id..=max_id).collect());
+    }
 
     let sample_rate: f32 = window.total_samples() as f32 / num_samples as f32;
 
@@ -411,4 +421,11 @@ pub fn get_events(
     };
 
     Ok(Metrics { timestamps, series })
+}
+
+fn now_ms() -> i64 {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("I'm not interested in running before 1970");
+    now.as_millis() as i64
 }
