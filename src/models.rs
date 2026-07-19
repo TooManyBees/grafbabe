@@ -22,7 +22,7 @@ impl Series {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct Metrics {
     pub timestamps: Vec<i64>,
     pub series: Vec<Series>,

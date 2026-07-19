@@ -308,7 +308,12 @@ fn get_event_indices_for_window(
     num_samples: usize,
     window: Window,
 ) -> rusqlite::Result<Vec<i64>> {
-    let max_id: i64 = connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))?;
+    let max_id: i64 = match connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))? {
+        Some(max_id) => max_id,
+        None => {
+            return Ok(vec![]);
+        }
+    };
 
     let sample_rate: f32 = window.total_samples() as f32 / num_samples as f32;
 
@@ -333,6 +338,9 @@ pub fn get_events(
     window: Window,
 ) -> rusqlite::Result<Metrics> {
     let event_ids = get_event_indices_for_window(connection, num_samples, window)?;
+    if event_ids.is_empty() {
+        return Ok(Metrics::default());
+    }
     let num_events = event_ids.len();
     let event_ids: Vec<_> = event_ids.into_iter().map(|id| Value::from(id)).collect();
     let event_ids = Rc::new(event_ids);
