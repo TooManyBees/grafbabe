@@ -305,14 +305,22 @@ fn get_event_indices_for_window(
     num_samples: usize,
     window: Window,
 ) -> rusqlite::Result<Vec<i64>> {
-    let max_id: i64 =
-        match connection.query_one("SELECT MAX(id) FROM events;", (), |row| row.get(0))? {
-            Some(max_id) => max_id,
-            None => {
-                return Ok(vec![]);
-            }
+    let (max_id, max_timestamp): (i64, i64) =
+        match connection.query_one("SELECT MAX(id), timestamp FROM events;", (), |row| {
+            let id = row.get(0)?;
+            let ts = row.get(1)?;
+            Ok((id, ts))
+        }) {
+            Ok(pair) => pair,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Ok(vec![])
+            },
+            Err(e) => return Err(e),
         };
     let min_timestamp = now_ms() - window.as_ms();
+    if min_timestamp > max_timestamp {
+        return Ok(vec![]);
+    }
     let min_id: i64 = connection.query_one(
         "SELECT MIN(id) FROM events WHERE timestamp >= ?",
         [min_timestamp],
