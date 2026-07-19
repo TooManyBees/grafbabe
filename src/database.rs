@@ -71,6 +71,10 @@ pub fn init_database(connection: &Connection) -> rusqlite::Result<()> {
         ) STRICT;",
         (),
     )?;
+    connection.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS events_by_timestamp ON events(timestamp);",
+        (),
+    )?;
 
     connection.execute(
         "CREATE TABLE IF NOT EXISTS metric_values (
