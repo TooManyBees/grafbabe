@@ -121,6 +121,7 @@ fn get_event_indices_for_window(
         return Ok((min_id..=max_id).collect());
     }
 
+    // FIXME: account for the possibility of a variable sample rate
     let sample_rate: f32 = window.total_samples() as f32 / num_samples as f32;
 
     let mut ids = Vec::with_capacity(num_samples);

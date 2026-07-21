@@ -67,12 +67,10 @@ fn bind_http_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
     Ok(http_listener)
 }
 
-const BACKGROUND_LOOP_DURATION: Duration = Duration::from_mins(1);
-
-fn background_loop(waker: Waker) {
+fn background_loop(duration: Duration, waker: Waker) {
     std::thread::spawn(move || {
         loop {
-            thread::sleep(BACKGROUND_LOOP_DURATION);
+            thread::sleep(duration);
             if let Err(e) = waker.wake() {
                 log::error!("Error waking up main thread: {e}");
             }
@@ -112,7 +110,8 @@ fn main_loop(
         source: error,
         message: "could not register cross-thread waker for wakeup events",
     })?;
-    background_loop(waker);
+
+    background_loop(config.poll_rate_duration(), waker);
 
     let mut events = Events::with_capacity(128);
     let mut buf = [0u8; 1024 * 4];
