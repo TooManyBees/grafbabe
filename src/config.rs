@@ -43,7 +43,8 @@ pub enum Command {
 #[derive(Copy, Clone, Debug, Default)]
 pub enum LogFormat {
     None,
-    #[default] Plain,
+    #[default]
+    Plain,
     Pretty,
 }
 

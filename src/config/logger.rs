@@ -1,6 +1,6 @@
-use crate::config::time::Time;
 use crate::config::LogFormat;
-use log::Level;
+use crate::config::time::Time;
+use log::{Level, LevelFilter};
 use std::io::Write;
 use std::time::SystemTime;
 
@@ -14,6 +14,7 @@ pub fn init_logger(level: Level, format: LogFormat) {
     let mut builder = env_logger::builder();
     let logger = builder
         .filter_level(level.to_level_filter())
+        .filter_module("ureq", LevelFilter::Off)
         .format_target(false)
         .format(|formatter, record| {
             let now = SystemTime::now();
@@ -32,7 +33,7 @@ pub fn init_logger(level: Level, format: LogFormat) {
         .write_style(WriteStyle::Never);
 
     match format {
-        LogFormat::None => {},
+        LogFormat::None => {}
         LogFormat::Pretty => {
             logger.write_style(WriteStyle::Auto).init();
         }
