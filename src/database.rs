@@ -11,6 +11,7 @@ use rusqlite::{
     Connection,
     types::{ToSql, ToSqlOutput, Value},
 };
+use std::path::Path;
 use std::time::SystemTime;
 
 struct SqlMetricType(MetricType);
@@ -32,8 +33,8 @@ impl ToSql for SqlMetricType {
     }
 }
 
-pub fn get_connection(path: &str) -> rusqlite::Result<Connection> {
-    let connection = Connection::open(path)?;
+pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
+    let connection = Connection::open(&path)?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
     connection.pragma_update(None, "foreign_keys", "ON")?;
     rusqlite::vtab::array::load_module(&connection)?;

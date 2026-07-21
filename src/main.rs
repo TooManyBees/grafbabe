@@ -1,9 +1,9 @@
+mod config;
 mod database;
 mod http_handler;
-mod logger;
 mod models;
-mod time;
 
+use crate::config::{ConfigError, init_error_logger, init_logger, parse_config, usage};
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
 use prometheus_scraper::{Format, ParseError, TextFormat, borrowed::MetricFamily, parse_payload};
 use rusqlite::Connection;
@@ -160,9 +160,26 @@ fn pull_metrics(
 }
 
 fn main() {
-    logger::init_logger(log::Level::Debug);
+    let config = match parse_config() {
+        Ok(c) => c,
+        Err(error) => {
+            match error {
+                ConfigError::JustPrintUsage(name) => eprintln!("{}", usage(Some(name))),
+                _ => {
+                    _ = init_error_logger();
+                    log::error!(error:%; "Could not parse arguments");
+                    eprintln!("{error}\n\n{}", usage(None));
+                }
+            }
+            std::process::exit(1);
+        }
+    };
 
-    let mut connection = database::get_connection("./pview.db3").unwrap();
+    init_logger(config.log_level);
+
+    let database_path = config.database_path();
+
+    let mut connection = database::get_connection(database_path).unwrap();
     database::init_database(&connection).unwrap();
 
     match std::env::args().skip(1).next().as_deref() {

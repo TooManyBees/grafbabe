@@ -1,4 +1,4 @@
-use crate::time::Time;
+use crate::config::time::Time;
 use log::Level;
 use std::io::Write;
 use std::time::SystemTime;
@@ -33,4 +33,8 @@ pub fn init_logger(level: Level) {
     //     LogFormat::Plain => logger.init(),
     // }
     logger.write_style(WriteStyle::Auto).init()
+}
+
+pub fn init_error_logger() {
+    init_logger(Level::Error)
 }
