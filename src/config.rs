@@ -40,6 +40,13 @@ pub enum Command {
     Seed,
 }
 
+#[derive(Copy, Clone, Debug, Default)]
+pub enum LogFormat {
+    None,
+    #[default] Plain,
+    Pretty,
+}
+
 #[derive(Debug)]
 pub struct Config {
     pub command: Command,
@@ -48,7 +55,7 @@ pub struct Config {
     pub poll_rate: Duration,
     pub state_location: PathBuf,
     pub log_level: Level,
-    // pub logging: ,
+    pub log_format: LogFormat,
 }
 
 impl Default for Config {
@@ -60,6 +67,7 @@ impl Default for Config {
             poll_rate: Duration::from_mins(1),
             state_location: PathBuf::from("."),
             log_level: Level::Info,
+            log_format: LogFormat::Plain,
         }
     }
 }

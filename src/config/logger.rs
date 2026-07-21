@@ -1,10 +1,15 @@
 use crate::config::time::Time;
+use crate::config::LogFormat;
 use log::Level;
 use std::io::Write;
 use std::time::SystemTime;
 
-pub fn init_logger(level: Level) {
+pub fn init_logger(level: Level, format: LogFormat) {
     use env_logger::WriteStyle;
+
+    if let LogFormat::None = format {
+        return;
+    }
 
     let mut builder = env_logger::builder();
     let logger = builder
@@ -26,15 +31,15 @@ pub fn init_logger(level: Level) {
         })
         .write_style(WriteStyle::Never);
 
-    // match format {
-    //     LogFormat::Pretty => {
-    //         logger.write_style(WriteStyle::Auto).init();
-    //     }
-    //     LogFormat::Plain => logger.init(),
-    // }
-    logger.write_style(WriteStyle::Auto).init()
+    match format {
+        LogFormat::None => {},
+        LogFormat::Pretty => {
+            logger.write_style(WriteStyle::Auto).init();
+        }
+        LogFormat::Plain => logger.init(),
+    }
 }
 
 pub fn init_error_logger() {
-    init_logger(Level::Error)
+    init_logger(Level::Error, LogFormat::Plain)
 }

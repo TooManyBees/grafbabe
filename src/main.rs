@@ -198,7 +198,7 @@ fn main() {
         }
     };
 
-    init_logger(config.log_level);
+    init_logger(config.log_level, config.log_format);
 
     let database_path = config.database_path();
 
