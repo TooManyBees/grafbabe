@@ -3,7 +3,9 @@ mod database;
 mod http_handler;
 mod models;
 
-use crate::config::{ConfigError, init_error_logger, init_logger, parse_config, usage};
+use crate::config::{
+    Command, Config, ConfigError, init_error_logger, init_logger, parse_config, usage,
+};
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
 use prometheus_scraper::{Format, ParseError, TextFormat, borrowed::MetricFamily, parse_payload};
 use rusqlite::Connection;
@@ -38,7 +40,7 @@ impl fmt::Display for SeedError {
     }
 }
 
-fn seed_database(connection: &mut Connection) -> Result<(), SeedError> {
+fn seed_database(config: Config, connection: &mut Connection) -> Result<(), SeedError> {
     log::info!("Seeding database");
     // TODO: accept arbitrary text file
     let mut f = File::open("./prometheus.txt").map_err(SeedError::IO)?;
@@ -56,8 +58,7 @@ fn seed_database(connection: &mut Connection) -> Result<(), SeedError> {
     Ok(())
 }
 
-fn bind_http_listener(port: u16) -> std::io::Result<TcpListener> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+fn bind_http_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
     let http_listener = TcpListener::bind(addr).map_err(|err| {
         log::error!("Error listening on {addr}: {err}");
         err
@@ -82,8 +83,11 @@ fn background_loop(waker: Waker) {
     });
 }
 
-fn main_loop(mut connection: Connection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut http_listener = bind_http_listener(3000)?;
+fn main_loop(
+    config: Config,
+    mut connection: Connection,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut http_listener = bind_http_listener(config.listen_addrs[0])?; // FIXME loop over them
 
     let mut poll = Poll::new().map_err(|error| PollError {
         source: error,
@@ -188,22 +192,18 @@ fn main() {
     let mut connection = database::get_connection(database_path).unwrap();
     database::init_database(&connection).unwrap();
 
-    match std::env::args().skip(1).next().as_deref() {
-        Some("seed") => {
-            if let Err(e) = seed_database(&mut connection) {
+    match config.command {
+        Command::Seed => {
+            if let Err(e) = seed_database(config, &mut connection) {
                 log::error!("Aborted database seed: {e}");
                 std::process::exit(1);
             }
         }
-        None | Some("serve") => {
-            if let Err(e) = main_loop(connection) {
+        Command::Serve => {
+            if let Err(e) = main_loop(config, connection) {
                 log::error!("Aborted main loop: {e}");
                 std::process::exit(1);
             }
-        }
-        Some(cmd) => {
-            eprintln!("Unrecognized command {}", cmd);
-            std::process::exit(1);
         }
     }
 }
