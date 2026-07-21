@@ -8,7 +8,6 @@ use std::{
     net::{IpAddr, SocketAddr},
     path::{Path, absolute},
     str::FromStr,
-    time::Duration,
 };
 
 #[derive(Debug)]
@@ -59,7 +58,7 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
                 config.prometheus_addr = value.into(); // FIXME
             }
             "poll_rate" => {
-                config.poll_rate = parse_poll_rate(value)?;
+                config.poll_rate_mins = parse_poll_rate(value)?;
             }
             "state_location" => {
                 config.state_location = value.into();
@@ -107,8 +106,8 @@ fn parse_uri(uri: &str) -> Result<&str, ParseError> {
     todo!()
 }
 
-fn parse_poll_rate(value: &str) -> Result<Duration, ParseError> {
-    let regex = Regex::new(r"\A(\d+)(s|m|h|d)\z").unwrap();
+fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
+    let regex = Regex::new(r"\A(\d+)(m|h|d)\z").unwrap();
     let caps = match regex.captures(value) {
         Some(caps) => caps,
         None => {
@@ -134,10 +133,9 @@ fn parse_poll_rate(value: &str) -> Result<Duration, ParseError> {
     };
 
     let duration = match caps.get(1).map(|m| m.as_str()) {
-        Some("s") => Duration::from_secs(number),
-        Some("m") => Duration::from_mins(number),
-        Some("h") => Duration::from_hours(number),
-        Some("d") => Duration::from_hours(number * 24),
+        Some("m") => number,
+        Some("h") => number * 60,
+        Some("d") => number * 60 * 24,
         _ => {
             return Err(ParseError::Invalid {
                 key: "poll_rate",

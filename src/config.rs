@@ -52,7 +52,7 @@ pub struct Config {
     pub command: Command,
     pub listen_addrs: Vec<SocketAddr>,
     pub prometheus_addr: String,
-    pub poll_rate: Duration,
+    pub poll_rate_mins: u64,
     pub state_location: PathBuf,
     pub log_level: Level,
     pub log_format: LogFormat,
@@ -64,7 +64,7 @@ impl Default for Config {
             command: Command::Serve,
             listen_addrs: vec![DEFAULT_LISTEN_ADDR],
             prometheus_addr: "http://localhost/metrics".to_string(),
-            poll_rate: Duration::from_mins(1),
+            poll_rate_mins: 1,
             state_location: PathBuf::from("."),
             log_level: Level::Info,
             log_format: LogFormat::Plain,
@@ -79,6 +79,10 @@ impl Config {
 
     pub fn database_path(&self) -> PathBuf {
         self.state_location.join(self.database_name())
+    }
+
+    pub fn poll_rate_duration(&self) -> Duration {
+        Duration::from_mins(self.poll_rate_mins)
     }
 }
 
