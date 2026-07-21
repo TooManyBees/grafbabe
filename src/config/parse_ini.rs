@@ -9,7 +9,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub enum ParseError {
     File(std::io::Error),
-    NoEquals(String),
+    Malformed(String),
     Invalid { key: &'static str, value: String },
 }
 
@@ -17,7 +17,7 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ParseError::File(e) => write!(f, "could not open config file: {e}"),
-            ParseError::NoEquals(s) => write!(f, "malformed line in config: {s}"),
+            ParseError::Malformed(s) => write!(f, "malformed line in config: {s}"),
             ParseError::Invalid { key, value } => {
                 write!(f, "{value} is not a valid value for {key}")
             }
@@ -39,8 +39,12 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
 
         let (key, value) = match line.split_once('=') {
             Some((key, value)) => (key.trim(), value.trim()),
-            None => return Err(ParseError::NoEquals(line.to_string())),
+            None => return Err(ParseError::Malformed(line.to_string())),
         };
+
+        if key.is_empty() || value.is_empty() {
+            return Err(ParseError::Malformed(line.to_string()));
+        }
 
         match key {
             "listen_addrs" => {
