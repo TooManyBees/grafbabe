@@ -67,9 +67,6 @@ fn bind_http_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
     Ok(http_listener)
 }
 
-const TOKEN_PULL_METRICS: Token = Token(0);
-const TOKEN_TCP_LISTENER: Token = Token(1);
-
 const BACKGROUND_LOOP_DURATION: Duration = Duration::from_mins(1);
 
 fn background_loop(waker: Waker) {
@@ -83,22 +80,34 @@ fn background_loop(waker: Waker) {
     });
 }
 
+const TOKEN_PULL_METRICS: Token = Token(0);
+const TOKEN_START_HTTP: usize = 1;
+
 fn main_loop(
     config: Config,
     mut connection: Connection,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut http_listener = bind_http_listener(config.listen_addrs[0])?; // FIXME loop over them
-
     let mut poll = Poll::new().map_err(|error| PollError {
         source: error,
         message: "could not create event poll",
     })?;
-    poll.registry()
-        .register(&mut http_listener, TOKEN_TCP_LISTENER, Interest::READABLE)
-        .map_err(|error| PollError {
-            source: error,
-            message: "could not register TCP listener for wakeup events",
-        })?;
+
+    let mut listeners = Vec::with_capacity(2);
+
+    for (addr, n) in config.listen_addrs.iter().zip(TOKEN_START_HTTP..) {
+        let mut listener = bind_http_listener(*addr)?;
+        let token = Token(n);
+
+        poll.registry()
+            .register(&mut listener, token, Interest::READABLE)
+            .map_err(|error| PollError {
+                source: error,
+                message: "could not register TCP listener for wakeup events",
+            })?;
+
+        listeners.push((token, listener));
+    }
+
     let waker = Waker::new(poll.registry(), TOKEN_PULL_METRICS).map_err(|error| PollError {
         source: error,
         message: "could not register cross-thread waker for wakeup events",
@@ -117,21 +126,25 @@ fn main_loop(
             }
 
             match event.token() {
-                TOKEN_TCP_LISTENER => {
-                    while let Some(stream) = accept_tcp(&http_listener) {
-                        if let Err(error) =
-                            http_handler::handle_http(stream, &mut buf, &mut connection)
-                        {
-                            log::error!("{error}");
-                        }
-                    }
-                }
                 TOKEN_PULL_METRICS => {
                     if let Err(error) = pull_metrics(&mut connection) {
                         log::error!("{error}");
                     }
                 }
-                _ => {}
+                event_token => {
+                    for (token, listener) in &listeners {
+                        if event_token == *token {
+                            while let Some(stream) = accept_tcp(listener) {
+                                if let Err(error) =
+                                    http_handler::handle_http(stream, &mut buf, &mut connection)
+                                {
+                                    log::error!("{error}");
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
