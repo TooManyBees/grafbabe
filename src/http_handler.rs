@@ -146,7 +146,7 @@ fn serve_metrics(
     let num_samples = match num_samples {
         None => 100,
         Some(Ok(n)) => n,
-        Some(Err(e)) => {
+        Some(Err(_)) => {
             let _ = empty_http_response(stream, StatusCode::BAD_REQUEST);
             return Ok(StatusCode::BAD_REQUEST);
         }
