@@ -4,7 +4,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::net::{IpAddr, SocketAddr};
-use std::path::Path;
+use std::path::{absolute, Path};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -61,7 +61,7 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
             }
             "logging" => {}
             _ => {
-                let absolute_path = path.canonicalize().unwrap_or(path.into());
+                let absolute_path = absolute(&path).unwrap_or(path.into());
                 let path_str = absolute_path.to_string_lossy();
                 log::warn!("Ignoring unknown config key in {path_str}: {key}");
             }
