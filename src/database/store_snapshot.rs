@@ -63,7 +63,9 @@ pub fn store_snapshot(
     transaction.commit()?;
 
     let num_metrics = snapshot.len();
-    let num_datapoints = snapshot.iter().fold(0, |sum, family| sum + family.metric.len());
+    let num_datapoints = snapshot
+        .iter()
+        .fold(0, |sum, family| sum + family.metric.len());
 
     log::debug!(timestamp, event_id; "Stored snapshot: {} data points for {} metrics", num_datapoints, num_metrics);
 

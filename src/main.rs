@@ -121,8 +121,10 @@ fn main_loop(mut connection: Connection) -> Result<(), Box<dyn std::error::Error
                         }
                     }
                 }
-                TOKEN_PULL_METRICS => if let Err(error) = pull_metrics(&mut connection) {
-                    log::error!("{error}");
+                TOKEN_PULL_METRICS => {
+                    if let Err(error) = pull_metrics(&mut connection) {
+                        log::error!("{error}");
+                    }
                 }
                 _ => {}
             }
@@ -144,7 +146,9 @@ fn accept_tcp(listener: &TcpListener) -> Option<TcpStream> {
     }
 }
 
-fn pull_metrics(_connection: &mut Connection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn pull_metrics(
+    connection: &mut Connection,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     log::debug!("TODO: pull some metrics!");
 
     // TODO make request to prometheus endpoint
