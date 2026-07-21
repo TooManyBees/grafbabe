@@ -14,8 +14,8 @@ use std::{
     fmt,
     fs::File,
     io::{ErrorKind, Read},
-    path::absolute,
     net::{SocketAddr, TcpStream},
+    path::absolute,
     thread,
     time::Duration,
 };
@@ -174,7 +174,7 @@ fn main() {
                     let absolute_path = absolute(&path).unwrap_or(path.into());
                     let path_str = absolute_path.to_string_lossy();
                     eprintln!("could not parse config at {path_str}: {error}");
-                },
+                }
                 _ => {
                     _ = init_error_logger();
                     log::error!(error:%; "Could not parse arguments");

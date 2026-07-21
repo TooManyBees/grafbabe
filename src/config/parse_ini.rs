@@ -1,10 +1,15 @@
 use crate::config::{Config, DEFAULT_PORT};
 use log::Level;
-use std::fmt;
-use std::fs::File;
-use std::io::Read;
-use std::net::{IpAddr, SocketAddr};
-use std::path::{absolute, Path};
+use regex::Regex;
+use std::{
+    fmt,
+    fs::File,
+    io::Read,
+    net::{IpAddr, SocketAddr},
+    path::{Path, absolute},
+    str::FromStr,
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -53,13 +58,18 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
             "prometheus_addr" => {
                 config.prometheus_addr = value.into(); // FIXME
             }
+            "poll_rate" => {
+                config.poll_rate = parse_poll_rate(value)?;
+            }
             "state_location" => {
                 config.state_location = value.into();
             }
             "log_level" => {
                 config.log_level = parse_log_level(value)?;
             }
-            "logging" => {}
+            "logging" => {
+                todo!("implement logging config")
+            }
             _ => {
                 let absolute_path = absolute(&path).unwrap_or(path.into());
                 let path_str = absolute_path.to_string_lossy();
@@ -91,6 +101,52 @@ fn parse_listen_addr(addr: &str) -> Result<SocketAddr, ParseError> {
             key: "listen_addrs",
             value: addr.to_string(),
         })
+}
+
+fn parse_uri(uri: &str) -> Result<&str, ParseError> {
+    todo!()
+}
+
+fn parse_poll_rate(value: &str) -> Result<Duration, ParseError> {
+    let regex = Regex::new(r"\A(\d+)(s|m|h|d)\z").unwrap();
+    let caps = match regex.captures(value) {
+        Some(caps) => caps,
+        None => {
+            return Err(ParseError::Invalid {
+                key: "poll_rate",
+                value: value.to_string(),
+            });
+        }
+    };
+
+    let number = match caps
+        .get(0)
+        .map(|m| m.as_str())
+        .and_then(|s| u64::from_str(s).ok())
+    {
+        Some(n) => n,
+        None => {
+            return Err(ParseError::Invalid {
+                key: "poll_rate",
+                value: value.to_string(),
+            });
+        }
+    };
+
+    let duration = match caps.get(1).map(|m| m.as_str()) {
+        Some("s") => Duration::from_secs(number),
+        Some("m") => Duration::from_mins(number),
+        Some("h") => Duration::from_hours(number),
+        Some("d") => Duration::from_hours(number * 24),
+        _ => {
+            return Err(ParseError::Invalid {
+                key: "poll_rate",
+                value: value.to_string(),
+            });
+        }
+    };
+
+    Ok(duration)
 }
 
 fn parse_log_level(level: &str) -> Result<Level, ParseError> {

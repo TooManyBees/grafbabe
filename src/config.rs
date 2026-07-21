@@ -8,6 +8,7 @@ use parse_ini::{ParseError, parse_ini};
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -44,6 +45,7 @@ pub struct Config {
     pub command: Command,
     pub listen_addrs: Vec<SocketAddr>,
     pub prometheus_addr: String,
+    pub poll_rate: Duration,
     pub state_location: PathBuf,
     pub log_level: Level,
     // pub logging: ,
@@ -55,6 +57,7 @@ impl Default for Config {
             command: Command::Serve,
             listen_addrs: vec![DEFAULT_LISTEN_ADDR],
             prometheus_addr: "http://localhost/metrics".to_string(),
+            poll_rate: Duration::from_mins(1),
             state_location: PathBuf::from("."),
             log_level: Level::Info,
         }
