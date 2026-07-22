@@ -1,11 +1,10 @@
 mod config;
 mod database;
 mod models;
-mod seed_database;
 mod serve_http;
 
 use crate::config::{Command, ConfigError, init_error_logger, init_logger, parse_config, usage};
-use crate::{seed_database::seed_database, serve_http::serve_http};
+use crate::{database::seed_database, serve_http::serve_http};
 use prometheus_scraper::{Format, ParseError, TextFormat, borrowed::MetricFamily, parse_payload};
 use std::path::absolute;
 
@@ -48,12 +47,12 @@ fn main() {
 
     let database_path = config.database_path();
 
-    let mut connection = database::get_connection(database_path).unwrap();
+    let connection = database::get_connection(database_path).unwrap();
     database::init_database(&connection).unwrap();
 
     match config.command {
         Command::Seed => {
-            if let Err(e) = seed_database(config, &mut connection) {
+            if let Err(e) = seed_database(config, connection) {
                 log::error!("Aborted database seed: {e}");
                 std::process::exit(1);
             }

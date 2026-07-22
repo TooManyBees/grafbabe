@@ -3,7 +3,7 @@ use crate::{ParseError, database, parse_prometheus};
 use rusqlite::Connection;
 use std::{fmt, fs::File, io::Read};
 
-pub fn seed_database(config: Config, connection: &mut Connection) -> Result<(), SeedError> {
+pub fn seed_database(config: Config, mut connection: Connection) -> Result<(), SeedError> {
     log::info!("Seeding database");
     // TODO: accept arbitrary text file
     let mut f = File::open("./prometheus.txt").map_err(SeedError::IO)?;
@@ -15,7 +15,7 @@ pub fn seed_database(config: Config, connection: &mut Connection) -> Result<(), 
     //     if n % 100 == 0 {
     //         log::debug!("Seed progress: {n}");
     //     }
-    database::store_snapshot(connection, &metrics).map_err(SeedError::DB)?;
+    database::store_snapshot(&mut connection, &metrics).map_err(SeedError::DB)?;
     // }
 
     Ok(())

@@ -1,11 +1,13 @@
 mod get_metrics;
 mod init;
 mod prune_old_metrics;
+mod seed_database;
 mod store_snapshot;
 
 pub use get_metrics::get_metrics;
 pub use init::init_database;
 pub use prune_old_metrics::prune_old_metrics;
+pub use seed_database::seed_database;
 pub use store_snapshot::store_snapshot;
 
 use prometheus_scraper::owned::MetricType;
