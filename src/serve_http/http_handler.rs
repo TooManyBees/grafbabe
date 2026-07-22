@@ -42,6 +42,7 @@ pub fn handle_http(
 
     let result = match (method, path, query) {
         ("GET", "/", _) => serve_file(stream, "./data/dashboard.html"),
+        ("GET", "/dashboard.js", _) => serve_file(stream, "./data/dashboard.js"),
         ("GET", "/chart.umd.min.js", _) => serve_file(stream, "./data/chart.umd.min.js"),
         ("GET", "/chart.umd.min.js.map", _) => serve_file(stream, "./data/chart.umd.min.js.map"),
         ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection)?),
