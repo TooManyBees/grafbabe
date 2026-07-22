@@ -1,4 +1,5 @@
 use crate::models::{Metrics, Window};
+use crate::serve_http::file_contents::file_contents;
 use httparse::{EMPTY_HEADER, Request, Status};
 use rusqlite::Connection;
 use std::{
@@ -83,10 +84,11 @@ fn content_type(path: &str) -> Option<&str> {
 }
 
 fn serve_file(mut stream: TcpStream, path: &str) -> std::io::Result<StatusCode> {
-    let mut file = File::open(path)?;
-    let mut string = String::new();
-    file.read_to_string(&mut string)?;
-    let bytes = string.as_bytes();
+    let contents = match file_contents(path)? {
+        Some(contents) => contents,
+        None => return empty_http_response(stream, StatusCode::NOT_FOUND),
+    };
+    let bytes = contents.as_bytes();
     let status_code = StatusCode::OK;
     stream.write_fmt(format_args!(
         "HTTP/1.1 {} {}\r\nContent-Length: {}\r\n",

@@ -17,3 +17,4 @@ ureq = "3.3.0"
 
 [features]
 mock_data = []
+include_html = []
