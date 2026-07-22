@@ -257,6 +257,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "grafbabe"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "httparse",
+ "log",
+ "mio",
+ "prometheus-scraper",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -484,22 +500,6 @@ dependencies = [
  "buffa-types",
  "bytes",
  "nom",
-]
-
-[[package]]
-name = "pview"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "httparse",
- "log",
- "mio",
- "prometheus-scraper",
- "regex",
- "rusqlite",
- "serde",
- "serde_json",
- "ureq",
 ]
 
 [[package]]
