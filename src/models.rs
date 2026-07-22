@@ -65,8 +65,8 @@ impl Window {
         }
     }
 
-    pub fn as_ms(self) -> i64 {
-        let duration = match self {
+    pub fn duration(self) -> Duration {
+        match self {
             Window::QuarterHour => Duration::from_mins(15),
             Window::HalfHour => Duration::from_mins(30),
             Window::Hour => Duration::from_hours(1),
@@ -75,8 +75,10 @@ impl Window {
             Window::Day => Duration::from_hours(24),
             Window::Week => Duration::from_hours(24) * 7,
             Window::Month => Duration::from_hours(24) * 30,
-        };
+        }
+    }
 
-        duration.as_millis() as i64
+    pub fn as_ms(self) -> i64 {
+        self.duration().as_millis() as i64
     }
 }

@@ -37,6 +37,9 @@ impl fmt::Display for ConfigError {
 pub enum Command {
     #[default]
     Serve,
+    #[cfg(feature = "mock_data")]
+    ServeMockData,
+    #[cfg(feature = "mock_data")]
     Seed,
 }
 
@@ -114,7 +117,10 @@ pub fn parse_config() -> Result<Config, ConfigError> {
                 return Err(ConfigError::JustPrintUsage(binary_name));
             }
             command_str if !command_str.starts_with("-") => match command_str {
+                #[cfg(feature = "mock_data")]
                 "seed" => command = Command::Seed,
+                #[cfg(feature = "mock_data")]
+                "mock" => command = Command::ServeMockData,
                 "serve" => command = Command::Serve,
                 _ => return Err(ConfigError::UnrecognizedCommand(arg)),
             },
@@ -130,7 +136,10 @@ pub fn parse_config() -> Result<Config, ConfigError> {
                 config
             })
     } else {
-        Ok(Config::default())
+        Ok(Config {
+            command,
+            ..Default::default()
+        })
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::config::Config;
-use crate::{ParseError, database, parse_prometheus};
+use crate::{database, parse_prometheus};
+use prometheus_scraper::ParseError;
 use rusqlite::Connection;
 use std::{fmt, fs::File, io::Read};
 

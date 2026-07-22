@@ -36,20 +36,9 @@ pub fn store_snapshot(
         let metric_id = known_metrics[&family.name];
 
         for metric in &family.metric {
-            let value = match metric.value {
-                MetricValue::Counter(Counter {
-                    value: UnsignedNumber::Uint(n),
-                    ..
-                }) => n as i64,
-                MetricValue::Counter(Counter {
-                    value: UnsignedNumber::Float(f),
-                    ..
-                }) => f as i64,
-                MetricValue::Gauge(Number::Int(n)) => n,
-                MetricValue::Gauge(Number::Float(f)) => f as i64,
-                MetricValue::Untyped(Number::Int(n)) => n,
-                MetricValue::Untyped(Number::Float(f)) => f as i64,
-                _ => panic!("Unsupported metric to insert"),
+            let value = match metric_value(&metric.value) {
+                Some(v) => v,
+                None => panic!("Unsupported metric to insert"),
             };
 
             let label_id = labels_to_db(&metric.label).map(|string| known_labels[&string]);
@@ -70,6 +59,25 @@ pub fn store_snapshot(
     log::debug!(timestamp, event_id; "Stored snapshot: {} data points for {} metrics", num_datapoints, num_metrics);
 
     Ok(())
+}
+
+pub fn metric_value(v: &MetricValue) -> Option<i64> {
+    let value = match v {
+        MetricValue::Counter(Counter {
+            value: UnsignedNumber::Uint(n),
+            ..
+        }) => *n as i64,
+        MetricValue::Counter(Counter {
+            value: UnsignedNumber::Float(f),
+            ..
+        }) => *f as i64,
+        MetricValue::Gauge(Number::Int(n)) => *n,
+        MetricValue::Gauge(Number::Float(f)) => *f as i64,
+        MetricValue::Untyped(Number::Int(n)) => *n,
+        MetricValue::Untyped(Number::Float(f)) => *f as i64,
+        _ => return None,
+    };
+    Some(value)
 }
 
 fn get_known_metrics<'a>(
@@ -126,7 +134,7 @@ fn get_known_metrics<'a>(
     Ok(known_metrics)
 }
 
-fn labels_to_db(labels: &[LabelPair]) -> Option<String> {
+pub fn labels_to_db(labels: &[LabelPair]) -> Option<String> {
     if labels.is_empty() {
         return None;
     }

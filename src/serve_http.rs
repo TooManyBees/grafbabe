@@ -2,13 +2,19 @@ mod background_poll;
 mod http_handler;
 
 use crate::config::Config;
+use crate::database::get_metrics;
+#[cfg(feature = "mock_data")]
+use crate::database::get_mock_data;
+use crate::models::{Metrics, Window};
+use crate::parse_prometheus;
 use crate::serve_http::background_poll::{background_loop, pull_metrics};
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
 use rusqlite::Connection;
 use std::{
     error::Error,
     fmt,
-    io::ErrorKind,
+    fs::File,
+    io::{ErrorKind, Read},
     net::{SocketAddr, TcpStream},
     time::Duration,
 };
@@ -60,6 +66,13 @@ pub fn serve_http(
         .build()
         .into();
 
+    let get_metrics_fn = |connection: &mut Connection,
+                          num_samples: usize,
+                          window: Window|
+     -> Result<Metrics, rusqlite::Error> {
+        get_metrics(connection, num_samples, window)
+    };
+
     loop {
         poll.poll(&mut events, None)?;
 
@@ -80,9 +93,86 @@ pub fn serve_http(
                     for (token, listener) in &listeners {
                         if event_token == *token {
                             while let Some(stream) = accept_tcp(listener) {
-                                if let Err(error) =
-                                    http_handler::handle_http(stream, &mut buf, &mut connection)
-                                {
+                                if let Err(error) = http_handler::handle_http(
+                                    stream,
+                                    &mut buf,
+                                    &mut connection,
+                                    get_metrics_fn,
+                                ) {
+                                    log::error!("{error}");
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mock_data")]
+pub fn serve_mock_http(
+    config: Config,
+    mut connection: Connection,
+    mock_data_path: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut poll = Poll::new().map_err(|error| PollError {
+        source: error,
+        message: "could not create event poll",
+    })?;
+
+    let mut listeners = Vec::with_capacity(2);
+
+    for (addr, n) in config.listen_addrs.iter().zip(TOKEN_START_HTTP..) {
+        let mut listener = bind_http_listener(*addr)?;
+        let token = Token(n);
+
+        poll.registry()
+            .register(&mut listener, token, Interest::READABLE)
+            .map_err(|error| PollError {
+                source: error,
+                message: "could not register TCP listener for wakeup events",
+            })?;
+
+        listeners.push((token, listener));
+    }
+
+    let mut events = Events::with_capacity(128);
+    let mut buf = [0u8; 1024 * 4];
+
+    let mut f = File::open(mock_data_path)?;
+    let mut s = String::new();
+    f.read_to_string(&mut s)?;
+    let metrics = parse_prometheus(&s)?;
+    log::info!("Loaded mock data from {}", mock_data_path);
+
+    let get_metrics_fn = |_connection: &mut Connection,
+                          num_samples: usize,
+                          window: Window|
+     -> Result<Metrics, rusqlite::Error> {
+        Ok(get_mock_data(&metrics, num_samples, window))
+    };
+
+    loop {
+        poll.poll(&mut events, None)?;
+
+        for event in &events {
+            if !event.is_readable() {
+                continue;
+            }
+
+            match event.token() {
+                event_token => {
+                    for (token, listener) in &listeners {
+                        if event_token == *token {
+                            while let Some(stream) = accept_tcp(listener) {
+                                if let Err(error) = http_handler::handle_http(
+                                    stream,
+                                    &mut buf,
+                                    &mut connection,
+                                    get_metrics_fn,
+                                ) {
                                     log::error!("{error}");
                                 }
                             }

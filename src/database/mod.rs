@@ -1,12 +1,18 @@
 mod get_metrics;
+#[cfg(feature = "mock_data")]
+mod get_mock_data;
 mod init;
 mod prune_old_metrics;
+#[cfg(feature = "mock_data")]
 mod seed_database;
 mod store_snapshot;
 
 pub use get_metrics::get_metrics;
+#[cfg(feature = "mock_data")]
+pub use get_mock_data::get_mock_data;
 pub use init::init_database;
 pub use prune_old_metrics::prune_old_metrics;
+#[cfg(feature = "mock_data")]
 pub use seed_database::seed_database;
 pub use store_snapshot::store_snapshot;
 

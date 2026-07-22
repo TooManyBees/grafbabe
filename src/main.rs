@@ -4,7 +4,11 @@ mod models;
 mod serve_http;
 
 use crate::config::{Command, ConfigError, init_error_logger, init_logger, parse_config, usage};
-use crate::{database::seed_database, serve_http::serve_http};
+#[cfg(feature = "mock_data")]
+use crate::database::seed_database;
+use crate::serve_http::serve_http;
+#[cfg(feature = "mock_data")]
+use crate::serve_http::serve_mock_http;
 use prometheus_scraper::{Format, ParseError, TextFormat, borrowed::MetricFamily, parse_payload};
 use std::path::absolute;
 
@@ -51,9 +55,17 @@ fn main() {
     database::init_database(&connection).unwrap();
 
     match config.command {
+        #[cfg(feature = "mock_data")]
         Command::Seed => {
             if let Err(e) = seed_database(config, connection) {
                 log::error!("Aborted database seed: {e}");
+                std::process::exit(1);
+            }
+        }
+        #[cfg(feature = "mock_data")]
+        Command::ServeMockData => {
+            if let Err(e) = serve_mock_http(config, connection, "./prometheus.txt") {
+                log::error!("Aborted main loop: {e}");
                 std::process::exit(1);
             }
         }

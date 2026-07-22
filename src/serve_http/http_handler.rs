@@ -1,5 +1,4 @@
-use crate::database::get_metrics;
-use crate::models::Window;
+use crate::models::{Metrics, Window};
 use httparse::{EMPTY_HEADER, Request, Status};
 use rusqlite::Connection;
 use std::{
@@ -11,10 +10,11 @@ use std::{
     time::Instant,
 };
 
-pub fn handle_http(
+pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, rusqlite::Error>>(
     mut stream: TcpStream,
     buf: &mut [u8],
     connection: &mut Connection,
+    get_metrics_fn: F,
 ) -> Result<(), HttpError> {
     let start_time = Instant::now();
 
@@ -45,7 +45,7 @@ pub fn handle_http(
         ("GET", "/dashboard.js", _) => serve_file(stream, "./data/dashboard.js"),
         ("GET", "/chart.umd.min.js", _) => serve_file(stream, "./data/chart.umd.min.js"),
         ("GET", "/chart.umd.min.js.map", _) => serve_file(stream, "./data/chart.umd.min.js.map"),
-        ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection)?),
+        ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
     };
 
@@ -118,10 +118,11 @@ fn get_queryparam<'a, 'b>(params: Option<&[(&str, &'a str)]>, target: &'b str) -
     })
 }
 
-fn serve_metrics(
+fn serve_metrics<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, rusqlite::Error>>(
     mut stream: TcpStream,
     query: Option<&str>,
     connection: &mut Connection,
+    mut get_metrics_fn: F,
 ) -> Result<StatusCode, HttpError> {
     let query = query.map(parse_querystring);
     let range = get_queryparam(query.as_deref(), "range");
@@ -153,7 +154,7 @@ fn serve_metrics(
         }
     };
 
-    let metrics = get_metrics(connection, num_samples, window).map_err(HttpError::Database)?;
+    let metrics = get_metrics_fn(connection, num_samples, window).map_err(HttpError::Database)?;
     let json = serde_json::to_string(&metrics).map_err(HttpError::Serde)?;
     let status_code = StatusCode::OK;
 
