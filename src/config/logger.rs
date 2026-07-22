@@ -21,10 +21,11 @@ pub fn init_logger(level: Level, format: LogFormat) {
             let t = Time::from(now);
             let level = record.level();
             let level_style = formatter.default_level_style(level);
+            let target = record.target();
             let args = record.args();
             write!(
                 formatter,
-                "{t} [{level_style}{level:<5}{level_style:#}] {args}"
+                "{t} [{level_style}{level:<5}{level_style:#} {target}] {args}"
             )?;
 
             env_logger::fmt::default_kv_format(formatter, record.key_values())?;
