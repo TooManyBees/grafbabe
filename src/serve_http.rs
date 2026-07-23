@@ -20,10 +20,7 @@ use std::{
     time::Duration,
 };
 #[cfg(feature = "mock_data")]
-use std::{
-    fs::File,
-    io::Read,
-};
+use std::{fs::File, io::Read};
 use ureq::Agent;
 
 const TOKEN_PULL_METRICS: Token = Token(0);

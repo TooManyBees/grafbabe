@@ -47,13 +47,13 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
         .and_then(|h| std::str::from_utf8(h.value).ok());
 
     let result = match (method, path, query) {
-        ("GET", "/", _) => serve_file(stream, if_none_match, "./data/dashboard.html"),
-        ("GET", "/dashboard.js", _) => serve_file(stream, if_none_match, "./data/dashboard.js"),
+        ("GET", "/", _) => serve_file(stream, if_none_match, "./frontend/dashboard.html"),
+        ("GET", "/dashboard.js", _) => serve_file(stream, if_none_match, "./frontend/dashboard.js"),
         ("GET", "/chart.umd.min.js", _) => {
-            serve_file(stream, if_none_match, "./data/chart.umd.min.js")
+            serve_file(stream, if_none_match, "./frontend/chart.umd.min.js")
         }
         ("GET", "/chart.umd.min.js.map", _) => {
-            serve_file(stream, if_none_match, "./data/chart.umd.min.js.map")
+            serve_file(stream, if_none_match, "./frontend/chart.umd.min.js.map")
         }
         ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
