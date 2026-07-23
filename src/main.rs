@@ -52,15 +52,16 @@ fn main() {
 
     match config.command {
         #[cfg(feature = "mock_data")]
-        Command::Seed => {
-            if let Err(e) = seed_database(connection) {
+        Command::Seed(mock_data_path) => {
+            if let Err(e) = seed_database(connection, &mock_data_path) {
                 log::error!("Aborted database seed: {e}");
                 std::process::exit(1);
             }
         }
         #[cfg(feature = "mock_data")]
-        Command::ServeMockData => {
-            if let Err(e) = serve_mock_http(config, connection, "./prometheus.txt") {
+        Command::ServeMockData(ref mock_data_path) => {
+            let mock_data_path = mock_data_path.clone();
+            if let Err(e) = serve_mock_http(config, connection, &mock_data_path) {
                 log::error!("Aborted main loop: {e}");
                 std::process::exit(1);
             }

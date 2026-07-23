@@ -13,6 +13,8 @@ use std::time::Duration;
 #[derive(Debug)]
 pub enum ConfigError {
     MissingArgument(String),
+    #[cfg(feature = "mock_data")]
+    MissingCommandArgument(String),
     UnrecognizedArgument(String),
     UnrecognizedCommand(String),
     ParseError(PathBuf, ParseError),
@@ -22,7 +24,9 @@ pub enum ConfigError {
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ConfigError::MissingArgument(s) => write!(f, "{s} is missing its following argument"),
+            ConfigError::MissingArgument(s) => write!(f, "the flag {s} is missing its following argument"),
+            #[cfg(feature = "mock_data")]
+            ConfigError::MissingCommandArgument(s) => write!(f, "the command {s} is missing its following argument"),
             ConfigError::UnrecognizedArgument(s) => write!(f, "unrecognized argument {s}"),
             ConfigError::UnrecognizedCommand(s) => write!(f, "unrecognized command {s}"),
             ConfigError::ParseError(p, e) => {
@@ -33,14 +37,14 @@ impl fmt::Display for ConfigError {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum Command {
     #[default]
     Serve,
     #[cfg(feature = "mock_data")]
-    ServeMockData,
+    ServeMockData(String),
     #[cfg(feature = "mock_data")]
-    Seed,
+    Seed(String),
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -118,9 +122,15 @@ pub fn parse_config() -> Result<Config, ConfigError> {
             }
             command_str if !command_str.starts_with("-") => match command_str {
                 #[cfg(feature = "mock_data")]
-                "seed" => command = Command::Seed,
+                "seed" => match args.next() {
+                    Some(path) => command = Command::Seed(path),
+                    None => return Err(ConfigError::MissingCommandArgument(command_str.to_string())),
+                },
                 #[cfg(feature = "mock_data")]
-                "mock" => command = Command::ServeMockData,
+                "mock" => match args.next() {
+                    Some(path) => command = Command::ServeMockData(path),
+                    None => return Err(ConfigError::MissingCommandArgument(command_str.to_string())),
+                },
                 "serve" => command = Command::Serve,
                 _ => return Err(ConfigError::UnrecognizedCommand(arg)),
             },
