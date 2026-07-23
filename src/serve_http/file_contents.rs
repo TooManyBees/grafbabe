@@ -40,11 +40,10 @@ fn read_file(path: &str) -> Result<FileResult, Error> {
         Err(e) => return Err(e),
     };
     let metadata = file.metadata()?;
-    let last_modified = metadata
-        .modified()?
-        .duration_since(UNIX_EPOCH)
-        .expect("I'm not interested in running before 1970");
-    let etag = format!("W/\"{}-{}\"", last_modified.as_millis(), metadata.len());
+    let etag = match metadata.modified()?.duration_since(UNIX_EPOCH) {
+        Ok(duration) => format!("W/\"{}-{}\"", duration.as_millis(), metadata.len()),
+        Err(e) => format!("W/\"-{}-{}\"", e.duration().as_millis(), metadata.len()),
+    };
 
     let mut string = String::new();
     file.read_to_string(&mut string)?;

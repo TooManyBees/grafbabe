@@ -52,8 +52,8 @@ pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
 }
 
 fn now_ms() -> i64 {
-    let now = SystemTime::now()
+    SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .expect("I'm not interested in running before 1970");
-    now.as_millis() as i64
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or_else(|e| e.duration().as_millis() as i64 * -1)
 }
