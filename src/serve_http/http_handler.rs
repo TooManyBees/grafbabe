@@ -1,10 +1,9 @@
 use crate::models::{Metrics, Window};
-use crate::serve_http::file_contents::file_contents;
+use crate::serve_http::file_contents::{FileResult, file_contents};
 use httparse::{EMPTY_HEADER, Request, Status};
 use rusqlite::Connection;
 use std::{
     fmt,
-    fs::File,
     io::{Read, Write},
     net::TcpStream,
     path::Path,
@@ -41,11 +40,21 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
         },
     };
 
+    let if_none_match = req
+        .headers
+        .iter()
+        .find(|h| h.name.eq_ignore_ascii_case("if-none-match"))
+        .and_then(|h| std::str::from_utf8(h.value).ok());
+
     let result = match (method, path, query) {
-        ("GET", "/", _) => serve_file(stream, "./data/dashboard.html"),
-        ("GET", "/dashboard.js", _) => serve_file(stream, "./data/dashboard.js"),
-        ("GET", "/chart.umd.min.js", _) => serve_file(stream, "./data/chart.umd.min.js"),
-        ("GET", "/chart.umd.min.js.map", _) => serve_file(stream, "./data/chart.umd.min.js.map"),
+        ("GET", "/", _) => serve_file(stream, if_none_match, "./data/dashboard.html"),
+        ("GET", "/dashboard.js", _) => serve_file(stream, if_none_match, "./data/dashboard.js"),
+        ("GET", "/chart.umd.min.js", _) => {
+            serve_file(stream, if_none_match, "./data/chart.umd.min.js")
+        }
+        ("GET", "/chart.umd.min.js.map", _) => {
+            serve_file(stream, if_none_match, "./data/chart.umd.min.js.map")
+        }
         ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
     };
@@ -83,18 +92,24 @@ fn content_type(path: &str) -> Option<&str> {
     }
 }
 
-fn serve_file(mut stream: TcpStream, path: &str) -> std::io::Result<StatusCode> {
-    let contents = match file_contents(path)? {
-        Some(contents) => contents,
-        None => return empty_http_response(stream, StatusCode::NOT_FOUND),
+fn serve_file(
+    mut stream: TcpStream,
+    if_none_match: Option<&str>,
+    path: &str,
+) -> std::io::Result<StatusCode> {
+    let (contents, etag) = match file_contents(path, if_none_match)? {
+        FileResult::Found { contents, etag } => (contents, etag),
+        FileResult::NotModified => return empty_http_response(stream, StatusCode::NOT_MODIFIED),
+        FileResult::NotFound => return empty_http_response(stream, StatusCode::NOT_FOUND),
     };
     let bytes = contents.as_bytes();
     let status_code = StatusCode::OK;
     stream.write_fmt(format_args!(
-        "HTTP/1.1 {} {}\r\nContent-Length: {}\r\n",
+        "HTTP/1.1 {} {}\r\nContent-Length: {}\r\nEtag: {}\r\n",
         status_code.as_str(),
         status_code.reason(),
         bytes.len(),
+        etag,
     ))?;
     if let Some(content_type) = content_type(path) {
         stream.write_fmt(format_args!("Content-Type: {}\r\n", content_type,))?;
@@ -177,6 +192,7 @@ enum StatusCode {
     OK,
     BAD_REQUEST,
     NOT_FOUND,
+    NOT_MODIFIED,
 }
 
 impl StatusCode {
@@ -184,6 +200,7 @@ impl StatusCode {
         use StatusCode::*;
         match self {
             OK => "200",
+            NOT_MODIFIED => "304",
             BAD_REQUEST => "400",
             NOT_FOUND => "404",
         }
@@ -193,6 +210,7 @@ impl StatusCode {
         use StatusCode::*;
         match self {
             OK => "Ok",
+            NOT_MODIFIED => "Not Modified",
             BAD_REQUEST => "Bad Request",
             NOT_FOUND => "Not Found",
         }

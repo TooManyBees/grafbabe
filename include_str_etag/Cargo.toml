@@ -1,0 +1,8 @@
+[package]
+name = "include_str_etag"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+proc-macro = true
