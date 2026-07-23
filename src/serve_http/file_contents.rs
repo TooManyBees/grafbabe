@@ -60,7 +60,7 @@ fn read_included(path: &str) -> Result<FileResult, Error> {
 
     let (contents, etag) = match path {
         "./data/chart.umd.min.js" => include_str_etag!("./data/chart.umd.min.js"),
-        "./data/chart.umd.min.js.map" => include_str_etag!("./data/chart.umd.min.js.map"),
+        // "./data/chart.umd.min.js.map" => include_str_etag!("./data/chart.umd.min.js.map"),
         "./data/dashboard.html" => include_str_etag!("./data/dashboard.html"),
         "./data/dashboard.js" => include_str_etag!("./data/dashboard.js"),
         _ => return Ok(FileResult::NotFound),
