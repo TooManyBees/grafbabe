@@ -24,9 +24,13 @@ pub enum ConfigError {
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ConfigError::MissingArgument(s) => write!(f, "the flag {s} is missing its following argument"),
+            ConfigError::MissingArgument(s) => {
+                write!(f, "the flag {s} is missing its following argument")
+            }
             #[cfg(feature = "mock_data")]
-            ConfigError::MissingCommandArgument(s) => write!(f, "the command {s} is missing its following argument"),
+            ConfigError::MissingCommandArgument(s) => {
+                write!(f, "the command {s} is missing its following argument")
+            }
             ConfigError::UnrecognizedArgument(s) => write!(f, "unrecognized argument {s}"),
             ConfigError::UnrecognizedCommand(s) => write!(f, "unrecognized command {s}"),
             ConfigError::ParseError(p, e) => {
@@ -124,12 +128,16 @@ pub fn parse_config() -> Result<Config, ConfigError> {
                 #[cfg(feature = "mock_data")]
                 "seed" => match args.next() {
                     Some(path) => command = Command::Seed(path),
-                    None => return Err(ConfigError::MissingCommandArgument(command_str.to_string())),
+                    None => {
+                        return Err(ConfigError::MissingCommandArgument(command_str.to_string()));
+                    }
                 },
                 #[cfg(feature = "mock_data")]
                 "mock" => match args.next() {
                     Some(path) => command = Command::ServeMockData(path),
-                    None => return Err(ConfigError::MissingCommandArgument(command_str.to_string())),
+                    None => {
+                        return Err(ConfigError::MissingCommandArgument(command_str.to_string()));
+                    }
                 },
                 "serve" => command = Command::Serve,
                 _ => return Err(ConfigError::UnrecognizedCommand(arg)),
