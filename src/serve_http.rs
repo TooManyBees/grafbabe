@@ -7,6 +7,7 @@ use crate::database::get_metrics;
 #[cfg(feature = "mock_data")]
 use crate::database::get_mock_data;
 use crate::models::{Metrics, Window};
+#[cfg(feature = "mock_data")]
 use crate::parse_prometheus;
 use crate::serve_http::background_poll::{background_loop, pull_metrics};
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
@@ -14,10 +15,14 @@ use rusqlite::Connection;
 use std::{
     error::Error,
     fmt,
-    fs::File,
-    io::{ErrorKind, Read},
+    io::ErrorKind,
     net::{SocketAddr, TcpStream},
     time::Duration,
+};
+#[cfg(feature = "mock_data")]
+use std::{
+    fs::File,
+    io::Read,
 };
 use ureq::Agent;
 
