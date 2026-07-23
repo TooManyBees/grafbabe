@@ -62,7 +62,7 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
     match result {
         Ok(status_code) => {
             let elapsed_ms = Instant::now().duration_since(start_time).as_millis();
-            log::info!(method, path, status_code:%, elapsed_ms; "Served response");
+            log::info!(method, path, status_code = status_code.as_str(), elapsed_ms; "Served response");
             Ok(())
         }
         Err(e) => Err(HttpError::Respond(e)),

@@ -1,4 +1,3 @@
-use crate::config::Config;
 use crate::{database, parse_prometheus};
 use prometheus_scraper::ParseError;
 use rusqlite::Connection;
