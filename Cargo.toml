@@ -11,11 +11,14 @@ log = { version = "0.4.33", features = ["kv"] }
 mio = { version = "1.2.0", features = ["net", "os-poll"] }
 prometheus-scraper = { version = "0.1.2", default-features = false }
 regex = "1.13.1"
-rusqlite = { version = "0.40.1", features = ["array", "bundled", "vtab"] }
+rusqlite = { version = "0.40.1", default-features = false, features = ["array", "vtab"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ureq = "3.3.0"
+ureq = { version = "3.3.0", default-features = false, features = ["gzip"] }
 
 [features]
-mock_data = []
+default = ["bundled_sqlite"]
+bundled_sqlite = ["rusqlite/bundled"]
 include_html = ["dep:include_str_etag"]
+mock_data = []
+tls = ["ureq/rustls"]

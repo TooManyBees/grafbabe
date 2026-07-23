@@ -15,6 +15,7 @@ pub fn init_logger(level: Level, format: LogFormat) {
     let logger = builder
         .filter_level(level.to_level_filter())
         .filter_module("ureq", LevelFilter::Off)
+        .filter_module("rustls", LevelFilter::Off)
         .format_target(false)
         .format(|formatter, record| {
             let now = SystemTime::now();
