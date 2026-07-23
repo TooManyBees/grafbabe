@@ -4,7 +4,7 @@ use prometheus_scraper::ParseError;
 use rusqlite::Connection;
 use std::{fmt, fs::File, io::Read};
 
-pub fn seed_database(config: Config, mut connection: Connection) -> Result<(), SeedError> {
+pub fn seed_database(mut connection: Connection) -> Result<(), SeedError> {
     log::info!("Seeding database");
     // TODO: accept arbitrary text file
     let mut f = File::open("./prometheus.txt").map_err(SeedError::IO)?;

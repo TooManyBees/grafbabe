@@ -102,9 +102,9 @@ fn parse_listen_addr(addr: &str) -> Result<SocketAddr, ParseError> {
         })
 }
 
-fn parse_uri(uri: &str) -> Result<&str, ParseError> {
-    todo!()
-}
+// fn parse_uri(uri: &str) -> Result<&str, ParseError> {
+//     todo!()
+// }
 
 fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
     let regex = Regex::new(r"\A(\d+)(m|h|d)\z").unwrap();

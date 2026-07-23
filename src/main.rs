@@ -57,7 +57,7 @@ fn main() {
     match config.command {
         #[cfg(feature = "mock_data")]
         Command::Seed => {
-            if let Err(e) = seed_database(config, connection) {
+            if let Err(e) = seed_database(connection) {
                 log::error!("Aborted database seed: {e}");
                 std::process::exit(1);
             }
