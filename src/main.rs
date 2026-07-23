@@ -3,7 +3,7 @@ mod database;
 mod models;
 mod serve_http;
 
-use crate::config::{Command, ConfigError, init_error_logger, init_logger, parse_config, usage};
+use crate::config::{Command, ConfigError, init_logger, parse_config, usage};
 #[cfg(feature = "mock_data")]
 use crate::database::seed_database;
 use crate::serve_http::serve_http;
@@ -27,11 +27,7 @@ fn main() {
                     let path_str = absolute_path.to_string_lossy();
                     eprintln!("could not parse config at {path_str}: {error}");
                 }
-                _ => {
-                    _ = init_error_logger();
-                    log::error!(error:%; "Could not parse arguments");
-                    eprintln!("{error}\n\n{}", usage(None));
-                }
+                _ => eprintln!("Could not parse arguments: {error}\n\n{}", usage(None)),
             }
             std::process::exit(1);
         }

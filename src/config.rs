@@ -3,7 +3,7 @@ mod parse_ini;
 mod time;
 
 use log::Level;
-pub use logger::{init_error_logger, init_logger};
+pub use logger::init_logger;
 use parse_ini::{ParseError, parse_ini};
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};

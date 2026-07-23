@@ -42,7 +42,3 @@ pub fn init_logger(level: Level, format: LogFormat) {
         LogFormat::Plain => logger.init(),
     }
 }
-
-pub fn init_error_logger() {
-    init_logger(Level::Error, LogFormat::Plain)
-}
