@@ -5,12 +5,12 @@ edition = "2024"
 
 [dependencies]
 httparse = "1.10.1"
-env_logger = { version = "0.11.11", features = ["kv"] }
+env_logger = { version = "0.11.11", default-features = false, features = ["auto-color", "kv"] }
 include_str_etag = { path = "./include_str_etag" }
 log = { version = "0.4.33", features = ["kv"] }
 mio = { version = "1.2.0", features = ["net", "os-poll"] }
 prometheus-scraper = { version = "0.1.2", default-features = false }
-regex = "1.13.1"
+regex = { version = "1.13.1", default-features = false }
 rusqlite = { version = "0.40.1", default-features = false, features = ["array", "vtab"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
