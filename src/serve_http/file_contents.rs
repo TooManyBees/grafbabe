@@ -2,9 +2,9 @@ use std::borrow::Cow;
 use std::io::Error;
 
 pub fn file_contents(path: &str, if_none_match: Option<&str>) -> Result<FileResult, Error> {
-    #[cfg(not(feature = "include_html"))]
+    #[cfg(debug_assertions)]
     let result = read_file(path);
-    #[cfg(feature = "include_html")]
+    #[cfg(not(debug_assertions))]
     let result = read_included(path);
 
     if let Some(if_none_match) = if_none_match {
@@ -27,7 +27,7 @@ pub enum FileResult {
     },
 }
 
-#[cfg(not(feature = "include_html"))]
+#[cfg(debug_assertions)]
 fn read_file(path: &str) -> Result<FileResult, Error> {
     use std::fs::File;
     use std::io::{ErrorKind, Read};
@@ -53,7 +53,7 @@ fn read_file(path: &str) -> Result<FileResult, Error> {
     })
 }
 
-#[cfg(feature = "include_html")]
+#[cfg(not(debug_assertions))]
 fn read_included(path: &str) -> Result<FileResult, Error> {
     use include_str_etag::include_str_etag;
 

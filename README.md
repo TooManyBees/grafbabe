@@ -2,13 +2,13 @@
 
 ## Usage
 
-`grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor is at `http://localhost:80/metrics`
+`grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
 
-`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See Configuration below for valid options.
+`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options. All of the following commands are also influenced by this flag.
 
-`grafbabe mock /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, then runs the server using the mock data instead of reading from the database. The database is never modified in this case. The data should be in Prometheus format. *(This is only available when grafbabe is compiled with the `mock_data` feature.)*
+`grafbabe mock /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, then runs the server using the mock data instead of reading from the database. The database is never modified in this case. The data should be in Prometheus format. *(This is only available when grafbabe is compiled with the **mock_data** feature.)*
 
-`grafbabe seed /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, and inserts a single snapshot into the database using the current timestamp, then exits. *(This is only available when grafbabe is compiled with the `mock_data` feature.)*
+`grafbabe seed /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, and inserts a single snapshot into the database using the current timestamp, then exits. *(This is only available when grafbabe is compiled with the **mock_data** feature.)*
 
 ## Configuration
 
@@ -94,5 +94,4 @@ log_target = stderr
 
 * **tls** (enabled by default) allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary.
-* **mock_data** as described in Usage, it enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`
-* **include_html** bundles the frontend HTML and Javascript into the binary, rather than reading from disk. This should always be set in order to make a portable binary.
+* **mock_data** as described in [Usage](#usage), it enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`

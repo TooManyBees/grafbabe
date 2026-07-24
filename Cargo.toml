@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 httparse = "1.10.1"
 env_logger = { version = "0.11.11", features = ["kv"] }
-include_str_etag = { path = "./include_str_etag", optional = true }
+include_str_etag = { path = "./include_str_etag" }
 log = { version = "0.4.33", features = ["kv"] }
 mio = { version = "1.2.0", features = ["net", "os-poll"] }
 prometheus-scraper = { version = "0.1.2", default-features = false }
@@ -19,6 +19,5 @@ ureq = { version = "3.3.0", default-features = false, features = ["gzip"] }
 [features]
 default = ["bundled_sqlite", "tls"]
 bundled_sqlite = ["rusqlite/bundled"]
-include_html = ["dep:include_str_etag"]
 mock_data = []
 tls = ["ureq/rustls"]
