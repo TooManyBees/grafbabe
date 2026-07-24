@@ -55,7 +55,7 @@ pub fn get_metrics(
 
     let series: Vec<_> = {
         let mut statement = connection.prepare(
-            "SELECT metric_id, label_id, events.timestamp, value
+            "SELECT metric_id, label_id, value
             FROM events
             LEFT JOIN metric_values ON events.id = metric_values.event_id
             INNER JOIN metrics ON metrics.id = metric_values.metric_id
