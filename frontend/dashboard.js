@@ -219,7 +219,7 @@ async function render() {
 
 function renderAgain() {
   render();
-  setTimeout(300, renderAgain);
+  setTimeout(renderAgain, 300000);
 }
 
 renderAgain();
