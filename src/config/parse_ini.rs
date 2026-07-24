@@ -1,4 +1,4 @@
-use crate::config::{Config, DEFAULT_PORT, LogFormat};
+use crate::config::{Config, DEFAULT_PORT, LogFormat, LogTarget};
 use log::Level;
 use regex::Regex;
 use std::{
@@ -68,6 +68,9 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
             }
             "log_format" => {
                 config.log_format = parse_log_format(value)?;
+            }
+            "log_target" => {
+                config.log_target = parse_log_target(value)?;
             }
             _ => {
                 let absolute_path = absolute(&path).unwrap_or(path.into());
@@ -163,12 +166,23 @@ fn parse_log_level(level: &str) -> Result<Level, ParseError> {
 
 fn parse_log_format(format: &str) -> Result<LogFormat, ParseError> {
     match format.to_ascii_lowercase().as_str() {
-        "none" => Ok(LogFormat::None),
         "plain" => Ok(LogFormat::Plain),
         "pretty" => Ok(LogFormat::Pretty),
         _ => Err(ParseError::Invalid {
             key: "log_format",
             value: format.to_string(),
+        }),
+    }
+}
+
+fn parse_log_target(target: &str) -> Result<LogTarget, ParseError> {
+    match target.to_ascii_lowercase().as_str() {
+        "none" => Ok(LogTarget::None),
+        "stdout" => Ok(LogTarget::Stdout),
+        "stderr" => Ok(LogTarget::Stderr),
+        _ => Err(ParseError::Invalid {
+            key: "log_target",
+            value: target.to_string(),
         }),
     }
 }

@@ -53,10 +53,17 @@ pub enum Command {
 
 #[derive(Copy, Clone, Debug, Default)]
 pub enum LogFormat {
-    None,
     #[default]
     Plain,
     Pretty,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum LogTarget {
+    None,
+    Stdout,
+    #[default]
+    Stderr,
 }
 
 #[derive(Debug)]
@@ -68,6 +75,7 @@ pub struct Config {
     pub state_location: PathBuf,
     pub log_level: Level,
     pub log_format: LogFormat,
+    pub log_target: LogTarget,
 }
 
 impl Default for Config {
@@ -80,6 +88,7 @@ impl Default for Config {
             state_location: PathBuf::from("."),
             log_level: Level::Info,
             log_format: LogFormat::Plain,
+            log_target: LogTarget::Stderr,
         }
     }
 }

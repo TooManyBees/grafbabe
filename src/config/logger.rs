@@ -1,19 +1,22 @@
-use crate::config::LogFormat;
 use crate::config::time::Time;
-use log::{Level, LevelFilter};
+use crate::config::{Config, LogFormat, LogTarget};
+use log::LevelFilter;
 use std::io::Write;
 use std::time::SystemTime;
 
-pub fn init_logger(level: Level, format: LogFormat) {
-    use env_logger::WriteStyle;
+pub fn init_logger(config: &Config) {
+    use env_logger::{Target, WriteStyle};
 
-    if let LogFormat::None = format {
-        return;
-    }
+    let target = match config.log_target {
+        LogTarget::None => return,
+        LogTarget::Stdout => Target::Stdout,
+        LogTarget::Stderr => Target::Stderr,
+    };
 
     let mut builder = env_logger::builder();
     let logger = builder
-        .filter_level(level.to_level_filter())
+        .target(target)
+        .filter_level(config.log_level.to_level_filter())
         .filter_module("ureq", LevelFilter::Off)
         .filter_module("rustls", LevelFilter::Off)
         .format_target(false)
@@ -34,8 +37,7 @@ pub fn init_logger(level: Level, format: LogFormat) {
         })
         .write_style(WriteStyle::Never);
 
-    match format {
-        LogFormat::None => {}
+    match config.log_format {
         LogFormat::Pretty => {
             logger.write_style(WriteStyle::Auto).init();
         }

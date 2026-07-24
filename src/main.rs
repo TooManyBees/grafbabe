@@ -33,7 +33,7 @@ fn main() {
         }
     };
 
-    init_logger(config.log_level, config.log_format);
+    init_logger(&config);
 
     log::debug!(
         listen_addrs:? = config.listen_addrs,

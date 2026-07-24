@@ -61,7 +61,7 @@ poll_rate = 1m
 #
 # If the location is omitted, it defaults to the current directory.
 #
-state_location = /var/run/grafbabe
+state_location = /var/lib/grafbabe
 
 
 # Log level
@@ -74,11 +74,20 @@ log_level = INFO
 # Log format
 #
 # Options are:
-# - none (no logging)
 # - plain (single line log events, with no ANSI formatting)
 # - pretty (optimized for readability, with ANSI formatting)
 #
 log_format = plain
+
+
+# Log target
+#
+# Options are:
+# - none (no logging)
+# - stdout
+# - stderr
+#
+log_target = stderr
 
 ```
 ## Optional features
