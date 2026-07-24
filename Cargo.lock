@@ -216,7 +216,6 @@ dependencies = [
  "log",
  "mio",
  "prometheus-scraper",
- "regex",
  "rusqlite",
  "serde",
  "serde_json",

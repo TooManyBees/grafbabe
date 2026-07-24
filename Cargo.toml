@@ -10,7 +10,6 @@ include_str_etag = { path = "./include_str_etag" }
 log = { version = "0.4.33", features = ["kv"] }
 mio = { version = "1.2.0", features = ["net", "os-poll"] }
 prometheus-scraper = { version = "0.1.2", default-features = false }
-regex = { version = "1.13.1", default-features = false }
 rusqlite = { version = "0.40.1", default-features = false, features = ["array", "vtab"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

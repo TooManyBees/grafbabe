@@ -1,6 +1,5 @@
 use crate::config::{Config, DEFAULT_PORT, LogFormat, LogTarget};
 use log::Level;
-use regex::Regex;
 use std::{
     fmt,
     fs::File,
@@ -110,41 +109,38 @@ fn parse_listen_addr(addr: &str) -> Result<SocketAddr, ParseError> {
 // }
 
 fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
-    let regex = Regex::new(r"\A([0-9]+)(m|h|d)\z").unwrap();
-    let caps = match regex.captures(value) {
-        Some(caps) => caps,
-        None => {
-            return Err(ParseError::Invalid {
-                key: "poll_rate",
-                value: value.to_string(),
-            });
-        }
+    let parse_error = Err(ParseError::Invalid {
+        key: "poll_rate",
+        value: value.to_string(),
+    });
+
+    let boundary =
+        match value.as_bytes().windows(2).enumerate().find(|(_, slice)| {
+            char::from(slice[0]).is_digit(10) && !char::from(slice[1]).is_digit(10)
+        }) {
+            Some((idx, _)) => idx + 1,
+            None => return parse_error,
+        };
+
+    let (numeric, unit) = match value.split_at_checked(boundary) {
+        Some(pair) => pair,
+        None => return parse_error,
     };
 
-    let number = match caps
-        .get(1)
-        .map(|m| m.as_str())
-        .and_then(|s| u64::from_str(s).ok())
-    {
-        Some(n) => n,
-        None => {
-            return Err(ParseError::Invalid {
-                key: "poll_rate",
-                value: value.to_string(),
-            });
-        }
+    let number = match u64::from_str(numeric) {
+        Ok(n) => n,
+        Err(_) => return parse_error,
     };
 
-    let duration = match caps.get(2).map(|m| m.as_str()) {
-        Some("m") => number,
-        Some("h") => number * 60,
-        Some("d") => number * 60 * 24,
-        _ => {
-            return Err(ParseError::Invalid {
-                key: "poll_rate",
-                value: value.to_string(),
-            });
-        }
+    if number == 0 {
+        return parse_error;
+    }
+
+    let duration = match unit {
+        "m" => number,
+        "h" => number * 60,
+        "d" => number * 60 * 24,
+        _ => return parse_error,
     };
 
     Ok(duration)
