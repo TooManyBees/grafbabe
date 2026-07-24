@@ -6,3 +6,6 @@ publish = false
 
 [lib]
 proc-macro = true
+
+[dependencies]
+xxhash-rust = { version = "0.8.18", features = ["xxh3"] }

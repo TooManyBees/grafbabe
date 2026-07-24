@@ -2,7 +2,6 @@ use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTr
 use std::fs::File;
 use std::io::Read;
 use std::path::{PathBuf, absolute};
-use std::time::UNIX_EPOCH;
 
 #[proc_macro]
 pub fn include_str_etag(input: TokenStream) -> TokenStream {
@@ -47,11 +46,17 @@ fn read_file_and_etag(filename: &str) -> std::io::Result<(String, String)> {
     let mut file = File::open(&filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    let metadata = file.metadata()?;
-    let len = metadata.len();
-    let etag = match metadata.modified()?.duration_since(UNIX_EPOCH) {
-        Ok(duration) => format!("W/\"{}-{}\"", duration.as_millis(), len),
-        Err(e) => format!("W/\"-{}-{}\"", e.duration().as_millis(), len),
-    };
+    let hash = xxhash_rust::xxh3::xxh3_128(contents.as_bytes());
+    let hash_hex_chars = hash.to_le_bytes().into_iter().flat_map(|byte| {
+        let left = (byte >> 4) as u32;
+        let right = (byte & 0b00001111) as u32;
+        [left, right].into_iter().map(move |n| {
+            char::from_digit(n, 16).unwrap_or_else(|| panic!("failed to convert nybble {n:02x} to char"))
+        })
+    });
+    let etag: String = std::iter::once('"')
+        .chain(hash_hex_chars)
+        .chain(std::iter::once('"'))
+        .collect();
     Ok((contents, etag))
 }
