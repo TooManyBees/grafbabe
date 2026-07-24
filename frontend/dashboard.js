@@ -118,8 +118,10 @@ Chart._adapters._date.override({
   },
 });
 
-async function getMetrics(numSamples = 100, window = "1h") {
-  const metrics = await fetch(`/metrics?num_samples=${numSamples}&window=${window}`).then(r => r.json());
+const WINDOW_SELECT = document.getElementById("window-select");
+
+async function getMetrics(numSamples = 100, sampleWindow = "1h") {
+  const metrics = await fetch(`/metrics?num_samples=${numSamples}&window=${sampleWindow}`).then(r => r.json());
   const accumulated = metrics.series.reduce((accum, series) => {
     if (accum.get(series.name) == null) {
       accum.set(series.name, []);
@@ -137,7 +139,7 @@ async function getMetrics(numSamples = 100, window = "1h") {
 
 Chart.defaults.font.family = "sans-serif";
 
-const CHARTS = new Map();
+const CHARTS = window.CHARTS = new Map();
 
 function datasets(timestamps, metric) {
   return metric.series.map(series => {
@@ -197,8 +199,8 @@ function createChart(timestamps, metric) {
   return chart;
 }
 
-async function render() {
-  const response = await getMetrics();
+async function render(sampleWindow) {
+  const response = await getMetrics(100, sampleWindow);
   let metric = response.metrics[response.metrics.length - 1];
   for (let metric of response.metrics) {
     if (!metric.name) {
@@ -217,9 +219,17 @@ async function render() {
   }
 }
 
-function renderAgain() {
-  render();
-  setTimeout(renderAgain, 300000);
+let RENDER_LOOP_TIMEOUT;
+
+function renderLoop(sampleWindow) {
+  render(sampleWindow || WINDOW_SELECT.value);
+  RENDER_LOOP_TIMEOUT = setTimeout(renderLoop, 300000);
 }
 
-renderAgain();
+WINDOW_SELECT.addEventListener("change", event => {
+  const sampleWindow = event.target.value;
+  clearTimeout(RENDER_LOOP_TIMEOUT);
+  renderLoop(sampleWindow);
+});
+
+renderLoop();

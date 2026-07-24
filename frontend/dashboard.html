@@ -5,24 +5,46 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>grafbabe</title>
 	<script type="text/javascript" src="chart.umd.min.js"></script>
-	<script type="text/javascript" src="dashboard.js"></script>
 
 	<style type="text/css">
+		header {
+			display: flex;
+			align-items: baseline;
+			justify-content: center;
+			gap: 2em;
+		}
+
 		#dashboards {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
+			display: flex;
+			flex-wrap: wrap;
+			position: relative;
 		}
 
 		.chart-container {
+			width: 50%;
 			position: relative;
 		}
 	</style>
 </head>
 <body>
 
-	<h1>grafbabe</h1>
+	<header>
+		<h1>grafbabe</h1>
+		<select id="window-select">
+			<option value="15m">15m</option>
+			<option value="30m">30m</option>
+			<option value="1h">1h</option>
+			<option value="4h">4h</option>
+			<option value="12h">12h</option>
+			<option value="1d" selected>1d</option>
+			<option value="7d">7d</option>
+			<option value="30d">30d</option>
+		</select>
+	</header>
 
 	<div id="dashboards"></div>
+
+	<script type="text/javascript" src="dashboard.js"></script>
 
 </body>
 </html>
