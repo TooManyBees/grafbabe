@@ -1,6 +1,7 @@
 use crate::database::now_ms;
 use crate::models::{Metrics, Series, Window};
 use rusqlite::{Connection, types::Value};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -82,7 +83,10 @@ pub fn get_metrics(
         events.into_values().collect()
     };
 
-    series.sort_by(|a, b| a.name.cmp(&b.name));
+    series.sort_by(|a, b| match a.name.cmp(&b.name) {
+        Ordering::Equal => a.label.cmp(&b.label),
+        ordering => ordering,
+    });
 
     Ok(Metrics { timestamps, series })
 }
