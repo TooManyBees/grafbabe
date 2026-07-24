@@ -1,6 +1,7 @@
 const FORMATTERS = {
   datetime: new Intl.DateTimeFormat(navigator.language, {
     hour12: false,
+    // year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -68,11 +69,29 @@ Chart._adapters._date.override({
       return value;
     throw new Error(`Not a date: ${JSON.stringify(value)}`);
   },
-  add: function(t1, t2) {
+  add: function(t1, t2, unit) {
     return t1 + t2;
   },
-  diff: function(t1, t2) {
-    return t1 - t2;
+  diff: function(t1, t2, unit) {
+    const diff = t1 - t2;
+
+    switch (unit) {
+    case "millisecond":
+      return diff;
+    case "second":
+      return diff / 1000;
+    case "minute":
+      return diff / 60000;
+    case "hour":
+      return diff / 3600000;
+    case "day":
+      return diff / 86400000;
+    case "week":
+    case "isoWeek":
+      return diff / 604800000;
+    case "month":
+      return diff / 18144000000;
+    }
   },
   startOf: function(time, unit) {
     const date = new Date(time);
@@ -144,8 +163,7 @@ const CHARTS = window.CHARTS = new Map();
 function datasets(timestamps, metric) {
   return metric.series.map(series => {
     const data = series.values.map((event, n) => ({
-      // x: timestamps[n],
-      x: timestamps[n] / 1000,
+      x: timestamps[n],
       y: event,
     }));
     const dataset = { data };
