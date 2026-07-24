@@ -110,7 +110,7 @@ fn parse_listen_addr(addr: &str) -> Result<SocketAddr, ParseError> {
 // }
 
 fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
-    let regex = Regex::new(r"\A(\d+)(m|h|d)\z").unwrap();
+    let regex = Regex::new(r"\A([0-9]+)(m|h|d)\z").unwrap();
     let caps = match regex.captures(value) {
         Some(caps) => caps,
         None => {
@@ -122,7 +122,7 @@ fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
     };
 
     let number = match caps
-        .get(0)
+        .get(1)
         .map(|m| m.as_str())
         .and_then(|s| u64::from_str(s).ok())
     {
@@ -135,7 +135,7 @@ fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
         }
     };
 
-    let duration = match caps.get(1).map(|m| m.as_str()) {
+    let duration = match caps.get(2).map(|m| m.as_str()) {
         Some("m") => number,
         Some("h") => number * 60,
         Some("d") => number * 60 * 24,
