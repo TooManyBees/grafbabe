@@ -11,62 +11,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 #[derive(Debug)]
-pub enum ConfigError {
-    MissingArgument(String),
-    #[cfg(feature = "mock_data")]
-    MissingCommandArgument(String),
-    UnrecognizedArgument(String),
-    UnrecognizedCommand(String),
-    ParseError(PathBuf, ParseError),
-    JustPrintUsage(String),
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ConfigError::MissingArgument(s) => {
-                write!(f, "the flag {s} is missing its following argument")
-            }
-            #[cfg(feature = "mock_data")]
-            ConfigError::MissingCommandArgument(s) => {
-                write!(f, "the command {s} is missing its following argument")
-            }
-            ConfigError::UnrecognizedArgument(s) => write!(f, "unrecognized argument {s}"),
-            ConfigError::UnrecognizedCommand(s) => write!(f, "unrecognized command {s}"),
-            ConfigError::ParseError(p, e) => {
-                write!(f, "error parsing config file {}: {e}", p.to_string_lossy())
-            }
-            ConfigError::JustPrintUsage(_) => write!(f, ""),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub enum Command {
-    #[default]
-    Serve,
-    #[cfg(feature = "mock_data")]
-    ServeMockData(String),
-    #[cfg(feature = "mock_data")]
-    Seed(String),
-}
-
-#[derive(Copy, Clone, Debug, Default)]
-pub enum LogFormat {
-    #[default]
-    Plain,
-    Pretty,
-}
-
-#[derive(Copy, Clone, Debug, Default)]
-pub enum LogTarget {
-    None,
-    Stdout,
-    #[default]
-    Stderr,
-}
-
-#[derive(Debug)]
 pub struct Config {
     pub command: Command,
     pub listen_addrs: Vec<SocketAddr>,
@@ -104,6 +48,62 @@ impl Config {
 
     pub fn poll_rate_duration(&self) -> Duration {
         Duration::from_mins(self.poll_rate_mins)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum Command {
+    #[default]
+    Serve,
+    #[cfg(feature = "mock_data")]
+    ServeMockData(String),
+    #[cfg(feature = "mock_data")]
+    Seed(String),
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum LogFormat {
+    #[default]
+    Plain,
+    Pretty,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum LogTarget {
+    None,
+    Stdout,
+    #[default]
+    Stderr,
+}
+
+#[derive(Debug)]
+pub enum ConfigError {
+    MissingArgument(String),
+    #[cfg(feature = "mock_data")]
+    MissingCommandArgument(String),
+    UnrecognizedArgument(String),
+    UnrecognizedCommand(String),
+    ParseError(PathBuf, ParseError),
+    JustPrintUsage(String),
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConfigError::MissingArgument(s) => {
+                write!(f, "the flag {s} is missing its following argument")
+            }
+            #[cfg(feature = "mock_data")]
+            ConfigError::MissingCommandArgument(s) => {
+                write!(f, "the command {s} is missing its following argument")
+            }
+            ConfigError::UnrecognizedArgument(s) => write!(f, "unrecognized argument {s}"),
+            ConfigError::UnrecognizedCommand(s) => write!(f, "unrecognized command {s}"),
+            ConfigError::ParseError(p, e) => {
+                write!(f, "error parsing config file {}: {e}", p.to_string_lossy())
+            }
+            ConfigError::JustPrintUsage(_) => write!(f, ""),
+        }
     }
 }
 

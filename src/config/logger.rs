@@ -34,13 +34,10 @@ pub fn init_logger(config: &Config) {
 
             env_logger::fmt::default_kv_format(formatter, record.key_values())?;
             write!(formatter, "\n")
-        })
-        .write_style(WriteStyle::Never);
+        });
 
     match config.log_format {
-        LogFormat::Pretty => {
-            logger.write_style(WriteStyle::Auto).init();
-        }
-        LogFormat::Plain => logger.init(),
+        LogFormat::Pretty => logger.write_style(WriteStyle::Auto).init(),
+        LogFormat::Plain => logger.write_style(WriteStyle::Never).init(),
     }
 }
