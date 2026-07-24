@@ -37,8 +37,11 @@ pub fn store_snapshot(
 
         for metric in &family.metric {
             let value = match metric_value(&metric.value) {
-                Some(v) => v,
-                None => panic!("Unsupported metric to insert"),
+                Ok(v) => v,
+                Err(t) => {
+                    log::warn!(metric_type:? = t; "Skipping unsupported metric type");
+                    continue;
+                }
             };
 
             let label_id = labels_to_db(&metric.label).map(|string| known_labels[&string]);
@@ -61,23 +64,41 @@ pub fn store_snapshot(
     Ok(())
 }
 
-pub fn metric_value(v: &MetricValue) -> Option<i64> {
-    let value = match v {
+/// The metric types supported by prometheus_scraper, which aren't
+/// supported by grafbabe.
+#[derive(Copy, Clone, Debug)]
+pub enum UnsupportedMetricType {
+    Summary,
+    Histogram,
+    GaugeHistogram,
+    NativeHistogram,
+    HybridHistogram,
+    StateSet,
+    Info,
+}
+
+pub fn metric_value(v: &MetricValue) -> Result<i64, UnsupportedMetricType> {
+    match v {
         MetricValue::Counter(Counter {
             value: UnsignedNumber::Uint(n),
             ..
-        }) => *n as i64,
+        }) => Ok(*n as i64),
         MetricValue::Counter(Counter {
             value: UnsignedNumber::Float(f),
             ..
-        }) => *f as i64,
-        MetricValue::Gauge(Number::Int(n)) => *n,
-        MetricValue::Gauge(Number::Float(f)) => *f as i64,
-        MetricValue::Untyped(Number::Int(n)) => *n,
-        MetricValue::Untyped(Number::Float(f)) => *f as i64,
-        _ => return None,
-    };
-    Some(value)
+        }) => Ok(*f as i64),
+        MetricValue::Gauge(Number::Int(n)) => Ok(*n),
+        MetricValue::Gauge(Number::Float(f)) => Ok(*f as i64),
+        MetricValue::Untyped(Number::Int(n)) => Ok(*n),
+        MetricValue::Untyped(Number::Float(f)) => Ok(*f as i64),
+        MetricValue::Summary(_) => Err(UnsupportedMetricType::Summary),
+        MetricValue::Histogram(_) => Err(UnsupportedMetricType::Histogram),
+        MetricValue::GaugeHistogram(_) => Err(UnsupportedMetricType::GaugeHistogram),
+        MetricValue::NativeHistogram(_) => Err(UnsupportedMetricType::NativeHistogram),
+        MetricValue::HybridHistogram { .. } => Err(UnsupportedMetricType::HybridHistogram),
+        MetricValue::StateSet(_) => Err(UnsupportedMetricType::StateSet),
+        MetricValue::Info(_) => Err(UnsupportedMetricType::Info),
+    }
 }
 
 fn get_known_metrics<'a>(

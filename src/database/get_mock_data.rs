@@ -15,10 +15,13 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
     let series = mock_data
         .iter()
         .flat_map(|family| {
-            family.metric.iter().map(|metric| {
+            family.metric.iter().filter_map(|metric| {
                 let value = match metric_value(&metric.value) {
-                    Some(v) => v,
-                    None => panic!("Unsupported metric value"),
+                    Ok(v) => v,
+                    Err(t) => {
+                        log::warn!(metric_type:? = t; "Skipping unsupported metric type");
+                        return None;
+                    }
                 };
 
                 let values = (0..num_samples as i64)
@@ -26,11 +29,11 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
                     .map(Some)
                     .collect();
 
-                Series {
+                Some(Series {
                     name: family.name.to_string(),
                     label: labels_to_db(&metric.label),
                     values,
-                }
+                })
             })
         })
         .collect();
