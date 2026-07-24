@@ -53,7 +53,7 @@ pub fn get_metrics(
         metric_ids
     };
 
-    let series: Vec<_> = {
+    let mut series: Vec<_> = {
         let mut statement = connection.prepare(
             "SELECT metric_id, label_id, value
             FROM events
@@ -81,6 +81,8 @@ pub fn get_metrics(
 
         events.into_values().collect()
     };
+
+    series.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(Metrics { timestamps, series })
 }
