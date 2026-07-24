@@ -188,7 +188,7 @@ function createChart(timestamps, metric) {
           },
         },
         y: {
-          min: 0,
+          suggestedMin: 0,
         }
       },
     },
@@ -205,7 +205,7 @@ async function render() {
       console.warn("Ignoring metric with blank name");
       continue;
     }
-    
+
     let chart = CHARTS.get(metric.name);
     if (chart == null) {
       chart = createChart(response.timestamps, metric);
@@ -217,4 +217,9 @@ async function render() {
   }
 }
 
-render();
+function renderAgain() {
+  render();
+  setTimeout(300, renderAgain);
+}
+
+renderAgain();
