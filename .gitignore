@@ -1,7 +1,7 @@
-/mock_data
 /target
 */target
 *.db3
 *.db3-journal
 *.db3-shm
 *.db3-wal
+*.mock.txt

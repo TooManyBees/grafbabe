@@ -28,11 +28,13 @@ pub enum FileResult {
 }
 
 #[cfg(debug_assertions)]
-fn read_file(path: &str) -> Result<FileResult, Error> {
+fn read_file(filename: &str) -> Result<FileResult, Error> {
     use std::fs::File;
     use std::io::{ErrorKind, Read};
+    use std::path::Path;
     use std::time::UNIX_EPOCH;
 
+    let path = Path::new("frontend").join(filename);
     let mut file = match File::open(path) {
         Ok(f) => f,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(FileResult::NotFound),
@@ -58,10 +60,10 @@ fn read_included(path: &str) -> Result<FileResult, Error> {
     use include_str_etag::include_str_etag;
 
     let (contents, etag) = match path {
-        "./frontend/chart.umd.min.js" => include_str_etag!("./frontend/chart.umd.min.js"),
-        // "./frontend/chart.umd.min.js.map" => include_str_etag!("./frontend/chart.umd.min.js.map"),
-        "./frontend/dashboard.html" => include_str_etag!("./frontend/dashboard.html"),
-        "./frontend/dashboard.js" => include_str_etag!("./frontend/dashboard.js"),
+        "chart.umd.min.js" => include_str_etag!("chart.umd.min.js"),
+        // "chart.umd.min.js.map" => include_str_etag!("chart.umd.min.js.map"),
+        "dashboard.html" => include_str_etag!("dashboard.html"),
+        "dashboard.js" => include_str_etag!("dashboard.js"),
         _ => return Ok(FileResult::NotFound),
     };
 

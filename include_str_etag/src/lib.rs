@@ -1,7 +1,9 @@
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};
 use std::fs::File;
-use std::io::Read;
-use std::path::{PathBuf, absolute};
+use std::io::{ErrorKind, Read};
+use std::path::{Path, PathBuf, absolute};
+
+const GRAFBABE_FRONTEND: &'static str = "GRAFBABE_FRONTEND";
 
 #[proc_macro]
 pub fn include_str_etag(input: TokenStream) -> TokenStream {
@@ -19,12 +21,29 @@ pub fn include_str_etag(input: TokenStream) -> TokenStream {
         }
     };
 
-    let (contents, etag) = match read_file_and_etag(&filename) {
+    let frontend_dir = std::env::var(GRAFBABE_FRONTEND)
+        .map(PathBuf::from)
+        .unwrap_or("frontend".into());
+    let path = frontend_dir.join(&filename);
+
+    let (contents, etag) = match read_file_and_etag(&path) {
         Ok(pair) => pair,
         Err(e) => {
-            let pathname = absolute(&filename).unwrap_or(PathBuf::from(&filename));
-            let path_str = pathname.to_string_lossy();
-            panic!("Error reading file {path_str}: {e}");
+            if e.kind() == ErrorKind::NotFound {
+                let dir = absolute(&frontend_dir).unwrap_or(frontend_dir);
+                let dir_str = dir.to_string_lossy();
+                if std::env::var(GRAFBABE_FRONTEND).is_ok() {
+                    panic!("File {filename} not found in {dir_str} (set by {GRAFBABE_FRONTEND})");
+                } else {
+                    panic!(
+                        "File {filename} not found in {dir_str}. You may be compiling from outside the project directory, or you removed the `frontend` directory."
+                    );
+                }
+            } else {
+                let pathname = absolute(&path).unwrap_or(path);
+                let path_str = pathname.to_string_lossy();
+                panic!("Error reading file {path_str}: {e}");
+            }
         }
     };
 
@@ -42,7 +61,7 @@ pub fn include_str_etag(input: TokenStream) -> TokenStream {
     .into()
 }
 
-fn read_file_and_etag(filename: &str) -> std::io::Result<(String, String)> {
+fn read_file_and_etag<P: AsRef<Path>>(filename: &P) -> std::io::Result<(String, String)> {
     let mut file = File::open(&filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
@@ -51,7 +70,8 @@ fn read_file_and_etag(filename: &str) -> std::io::Result<(String, String)> {
         let left = (byte >> 4) as u32;
         let right = (byte & 0b00001111) as u32;
         [left, right].into_iter().map(move |n| {
-            char::from_digit(n, 16).unwrap_or_else(|| panic!("failed to convert nybble {n:02x} to char"))
+            char::from_digit(n, 16)
+                .unwrap_or_else(|| panic!("failed to convert nybble {n:02x} to char"))
         })
     });
     let etag: String = std::iter::once('"')
