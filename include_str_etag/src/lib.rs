@@ -1,6 +1,7 @@
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};
 use std::fs::File;
 use std::io::{ErrorKind, Read};
+use std::iter::once;
 use std::path::{Path, PathBuf, absolute};
 
 const GRAFBABE_FRONTEND: &'static str = "GRAFBABE_FRONTEND";
@@ -61,22 +62,19 @@ pub fn include_str_etag(input: TokenStream) -> TokenStream {
     .into()
 }
 
+static HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
+
 fn read_file_and_etag<P: AsRef<Path>>(filename: &P) -> std::io::Result<(String, String)> {
     let mut file = File::open(&filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     let hash = xxhash_rust::xxh3::xxh3_128(contents.as_bytes());
     let hash_hex_chars = hash.to_le_bytes().into_iter().flat_map(|byte| {
-        let left = (byte >> 4) as u32;
-        let right = (byte & 0b00001111) as u32;
-        [left, right].into_iter().map(move |n| {
-            char::from_digit(n, 16)
-                .unwrap_or_else(|| panic!("failed to convert nybble {n:02x} to char"))
-        })
+        let left = (byte >> 4) as usize;
+        let right = (byte & 0b00001111) as usize;
+
+        once(HEX_CHARS[left] as char).chain(once(HEX_CHARS[right] as char))
     });
-    let etag: String = std::iter::once('"')
-        .chain(hash_hex_chars)
-        .chain(std::iter::once('"'))
-        .collect();
+    let etag: String = once('"').chain(hash_hex_chars).chain(once('"')).collect();
     Ok((contents, etag))
 }
