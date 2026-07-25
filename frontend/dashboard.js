@@ -1,3 +1,5 @@
+;(function() {
+
 const FORMATTERS = {
   datetime: new Intl.DateTimeFormat(navigator.language, {
     hour12: false,
@@ -251,3 +253,5 @@ WINDOW_SELECT.addEventListener("change", event => {
 });
 
 renderLoop();
+
+})();
