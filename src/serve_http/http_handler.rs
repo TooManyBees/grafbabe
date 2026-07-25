@@ -46,21 +46,21 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
         .find(|h| h.name.eq_ignore_ascii_case("if-none-match"))
         .and_then(|h| std::str::from_utf8(h.value).ok());
 
-    let result = match (method, path, query) {
-        ("GET", "/", _) => serve_file(stream, if_none_match, "dashboard.html"),
-        ("GET", "/dashboard.js", _) => serve_file(stream, if_none_match, "dashboard.js"),
-        ("GET", "/chart.umd.min.js", _) => serve_file(stream, if_none_match, "chart.umd.min.js"),
-        ("GET", "/chart.umd.min.js.map", _) => {
+    let result = match (method, path) {
+        ("GET", "/") => serve_file(stream, if_none_match, "dashboard.html"),
+        ("GET", "/dashboard.js") => serve_file(stream, if_none_match, "dashboard.js"),
+        ("GET", "/chart.umd.min.js") => serve_file(stream, if_none_match, "chart.umd.min.js"),
+        ("GET", "/chart.umd.min.js.map") => {
             serve_file(stream, if_none_match, "chart.umd.min.js.map")
         }
-        ("GET", "/metrics", query) => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
+        ("GET", "/metrics") => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
     };
 
     match result {
         Ok(status_code) => {
             let elapsed_ms = Instant::now().duration_since(start_time).as_millis();
-            log::info!(method, path, status_code = status_code.as_str(), elapsed_ms; "Served response");
+            log::debug!(method, path, status_code = status_code.as_str(), elapsed_ms; "Served response");
             Ok(())
         }
         Err(e) => Err(HttpError::Respond(e)),
