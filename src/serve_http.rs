@@ -10,6 +10,8 @@ use crate::models::{Metrics, Window};
 #[cfg(feature = "mock_data")]
 use crate::parse_prometheus;
 use crate::serve_http::background_poll::{background_loop, pull_metrics};
+#[cfg(not(debug_assertions))]
+pub use file_contents::{INCLUDED_FILES, INCLUDED_FILES_ROOT};
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
 use rusqlite::Connection;
 use std::{

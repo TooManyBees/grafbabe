@@ -12,4 +12,13 @@ pub fn version_more() {
     for feature in FEATURES.split(' ') {
         println!("\t{feature}");
     }
+
+    #[cfg(not(debug_assertions))]
+    {
+        println!("Included frontend files:");
+        let root = crate::serve_http::INCLUDED_FILES_ROOT;
+        for (filename, _) in crate::serve_http::INCLUDED_FILES {
+            println!("\t{root}/{filename}");
+        }
+    }
 }

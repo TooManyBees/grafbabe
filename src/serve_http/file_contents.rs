@@ -1,3 +1,5 @@
+#[cfg(not(debug_assertions))]
+use include_str_etag::{include_dir_etag, include_dir_root};
 use std::borrow::Cow;
 use std::io::Error;
 
@@ -56,15 +58,17 @@ fn read_file(filename: &str) -> Result<FileResult, Error> {
 }
 
 #[cfg(not(debug_assertions))]
-fn read_included(path: &str) -> Result<FileResult, Error> {
-    use include_str_etag::include_str_etag;
+pub static INCLUDED_FILES: &'static [(&'static str, (&'static str, &'static str))] =
+    include_dir_etag!("frontend");
+#[cfg(not(debug_assertions))]
+pub static INCLUDED_FILES_ROOT: &'static str = include_dir_root!("frontend");
 
-    let (contents, etag) = match path {
-        "chart.umd.min.js" => include_str_etag!("chart.umd.min.js"),
-        // "chart.umd.min.js.map" => include_str_etag!("chart.umd.min.js.map"),
-        "dashboard.html" => include_str_etag!("dashboard.html"),
-        "dashboard.js" => include_str_etag!("dashboard.js"),
-        _ => return Ok(FileResult::NotFound),
+#[cfg(not(debug_assertions))]
+fn read_included(path: &str) -> Result<FileResult, Error> {
+    let maybe_found = INCLUDED_FILES.iter().find(|(key, _)| *key == path);
+    let (contents, etag) = match maybe_found {
+        Some((_, found)) => found,
+        None => return Ok(FileResult::NotFound),
     };
 
     Ok(FileResult::Found {

@@ -1,4 +1,5 @@
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};
+use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::iter::once;
@@ -27,8 +28,8 @@ pub fn include_str_etag(input: TokenStream) -> TokenStream {
         .unwrap_or("frontend".into());
     let path = frontend_dir.join(&filename);
 
-    let (contents, etag) = match read_file_and_etag(&path) {
-        Ok(pair) => pair,
+    let IncludedFile { contents, etag } = match read_file_and_etag(&path) {
+        Ok(file) => file,
         Err(e) => {
             if e.kind() == ErrorKind::NotFound {
                 let dir = absolute(&frontend_dir).unwrap_or(frontend_dir);
@@ -62,9 +63,131 @@ pub fn include_str_etag(input: TokenStream) -> TokenStream {
     .into()
 }
 
+#[proc_macro]
+pub fn include_dir_etag(input: TokenStream) -> TokenStream {
+    let mut tokens = input.into_iter();
+    let mut frontend_dir: String = match (tokens.next(), tokens.next()) {
+        (Some(TokenTree::Literal(l)), None) => {
+            let s = l.to_string();
+            s.trim_matches('"').to_string()
+        }
+        (Some(_), _) => {
+            panic!("invalid include_dir_etag argument: must be one literal");
+        }
+        (None, _) => {
+            panic!("this macro takes one parameter, but 0 were given");
+        }
+    };
+
+    frontend_dir = std::env::var(GRAFBABE_FRONTEND).unwrap_or(frontend_dir.to_string());
+
+    let paths_to_include = list_paths_to_include(&frontend_dir).unwrap();
+
+    TokenStream::from_iter(
+        [
+            TokenTree::Punct(Punct::new('&', Spacing::Joint)),
+            TokenTree::Group(Group::new(
+                Delimiter::Bracket,
+                TokenStream::from_iter(paths_to_include.iter().map(|path| {
+                    let IncludedFile { contents, etag } = read_file_and_etag(path).unwrap();
+                    let path_literal = os_path_to_url_path(path);
+                    let path_literal = path_literal
+                        .strip_prefix(&frontend_dir)
+                        .unwrap_or(&path_literal);
+                    let path_literal = path_literal.strip_prefix('/').unwrap_or(&path_literal);
+                    TokenStream::from_iter(
+                        [
+                            TokenTree::Group(Group::new(
+                                Delimiter::Parenthesis,
+                                TokenStream::from_iter(
+                                    [
+                                        TokenTree::Literal(Literal::string(&path_literal)),
+                                        TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                                        TokenTree::Group(Group::new(
+                                            Delimiter::Parenthesis,
+                                            TokenStream::from_iter(
+                                                [
+                                                    TokenTree::Literal(Literal::string(&contents)),
+                                                    TokenTree::Punct(Punct::new(
+                                                        ',',
+                                                        Spacing::Alone,
+                                                    )),
+                                                    TokenTree::Literal(Literal::string(&etag)),
+                                                ]
+                                                .into_iter(),
+                                            ),
+                                        )),
+                                    ]
+                                    .into_iter(),
+                                ),
+                            )),
+                            TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                        ]
+                        .into_iter(),
+                    )
+                })),
+            )),
+        ]
+        .into_iter(),
+    )
+    .into()
+}
+
+#[proc_macro]
+pub fn include_dir_root(input: TokenStream) -> TokenStream {
+    let mut tokens = input.into_iter();
+    let mut frontend_dir: String = match (tokens.next(), tokens.next()) {
+        (Some(TokenTree::Literal(l)), None) => {
+            let s = l.to_string();
+            s.trim_matches('"').to_string()
+        }
+        (Some(_), _) => {
+            panic!("invalid include_dir_root argument: must be one literal");
+        }
+        (None, _) => {
+            panic!("this macro takes one parameter, but 0 were given");
+        }
+    };
+
+    frontend_dir = std::env::var(GRAFBABE_FRONTEND).unwrap_or(frontend_dir.to_string());
+
+    TokenTree::Literal(Literal::string(&frontend_dir)).into()
+}
+
+fn list_paths_to_include<P: AsRef<Path>>(root: &P) -> std::io::Result<Vec<PathBuf>> {
+    let mut result = vec![];
+    for entry in std::fs::read_dir(root)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            // TODO make the exclude configurable
+            if entry.path().extension() != Some(OsStr::new("map")) {
+                result.push(entry.path());
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+fn os_path_to_url_path(os_path: &Path) -> String {
+    let mut path = OsString::with_capacity(os_path.as_os_str().len());
+    for (i, c) in os_path.components().enumerate() {
+        if i > 0 {
+            path.push("/");
+        }
+        path.push(c);
+    }
+    path.to_string_lossy().to_string()
+}
+
+struct IncludedFile {
+    contents: String,
+    etag: String,
+}
+
 static HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
 
-fn read_file_and_etag<P: AsRef<Path>>(filename: &P) -> std::io::Result<(String, String)> {
+fn read_file_and_etag<P: AsRef<Path>>(filename: &P) -> std::io::Result<IncludedFile> {
     let mut file = File::open(&filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
@@ -76,5 +199,5 @@ fn read_file_and_etag<P: AsRef<Path>>(filename: &P) -> std::io::Result<(String, 
         once(HEX_CHARS[left] as char).chain(once(HEX_CHARS[right] as char))
     });
     let etag: String = once('"').chain(hash_hex_chars).chain(once('"')).collect();
-    Ok((contents, etag))
+    Ok(IncludedFile { contents, etag })
 }
