@@ -1,6 +1,7 @@
 mod logger;
 mod parse_ini;
 mod time;
+mod version;
 
 use log::Level;
 pub use logger::init_logger;
@@ -9,10 +10,12 @@ use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+pub use version::{version, version_more};
 
 #[derive(Debug)]
 pub struct Config {
     pub command: Command,
+    pub info_command: Option<InfoCommand>,
     pub listen_addrs: Vec<SocketAddr>,
     pub prometheus_addr: String,
     pub poll_rate_mins: u64,
@@ -26,6 +29,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             command: Command::Serve,
+            info_command: None,
             listen_addrs: vec![DEFAULT_LISTEN_ADDR],
             prometheus_addr: "http://localhost/metrics".to_string(),
             poll_rate_mins: 1,
@@ -61,6 +65,13 @@ pub enum Command {
     Seed(String),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum InfoCommand {
+    Usage,
+    Version,
+    VersionMore,
+}
+
 #[derive(Copy, Clone, Debug, Default)]
 pub enum LogFormat {
     #[default]
@@ -84,7 +95,6 @@ pub enum ConfigError {
     UnrecognizedArgument(String),
     UnrecognizedCommand(String),
     ParseError(PathBuf, ParseError),
-    JustPrintUsage(String),
 }
 
 impl fmt::Display for ConfigError {
@@ -102,7 +112,6 @@ impl fmt::Display for ConfigError {
             ConfigError::ParseError(p, e) => {
                 write!(f, "error parsing config file {}: {e}", p.to_string_lossy())
             }
-            ConfigError::JustPrintUsage(_) => write!(f, ""),
         }
     }
 }
@@ -118,8 +127,7 @@ const DEFAULT_LISTEN_ADDR: SocketAddr = if cfg!(debug_assertions) {
 pub fn parse_config() -> Result<Config, ConfigError> {
     let mut config_file: Option<PathBuf> = None;
 
-    let mut args = std::env::args();
-    let binary_name = args.next().unwrap_or(PROGRAM_NAME.to_string());
+    let mut args = std::env::args().skip(1);
 
     let mut command = Command::Serve;
 
@@ -131,7 +139,22 @@ pub fn parse_config() -> Result<Config, ConfigError> {
                 None => return Err(ConfigError::MissingArgument(flag.to_string())),
             },
             "-h" | "--help" => {
-                return Err(ConfigError::JustPrintUsage(binary_name));
+                return Ok(Config {
+                    info_command: Some(InfoCommand::Usage),
+                    ..Default::default()
+                });
+            }
+            "-v" => {
+                return Ok(Config {
+                    info_command: Some(InfoCommand::Version),
+                    ..Default::default()
+                });
+            }
+            "-vv" | "--version" => {
+                return Ok(Config {
+                    info_command: Some(InfoCommand::VersionMore),
+                    ..Default::default()
+                });
             }
             command_str if !command_str.starts_with("-") => match command_str {
                 #[cfg(feature = "mock_data")]
@@ -170,19 +193,14 @@ pub fn parse_config() -> Result<Config, ConfigError> {
     }
 }
 
-pub fn usage(name: Option<String>) -> String {
-    let name = match name {
-        Some(n) => n,
-        None => match std::env::args().next() {
-            Some(name) => name,
-            None => PROGRAM_NAME.to_string(),
-        },
-    };
-    format!(
+pub fn usage() {
+    let name = std::env::args().next().unwrap_or(PROGRAM_NAME.to_string());
+    eprintln!(
         "Usage:\t{name} [-ch]
 
-\t -c or --config-file <PATH> path to config file
-\t\tdefault: /var/lib/{PROGRAM_NAME}/{PROGRAM_NAME}.ini
-\t -h or --help (you're readin' it)"
+\t-c or --config-file <PATH> (path to config file)
+\t-h or --help (you're readin' it)
+\t-v (print version string)
+\t-vv or --version (print more detailed version)"
     )
 }
