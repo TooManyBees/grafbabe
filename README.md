@@ -2,17 +2,17 @@
 
 The usecase: you have a service on your $7 VPS that has a Prometheus metrics endpoint. You want to monitor those stats over time, in lines on graphs. Grafana and Graphite exist, and they will OOM your poor, underresourced VPS as soon as you turn them on.
 
-grafbabe monitors one (and only one) Prometheus endpoint per process. It keeps one (and only one) month of metrics. It serves one (and only one) dashboard over HTTP. Queries and insights and trends and alerts are out of scope. You just want to see the lines, so all you get are the lines.
+grafbabe monitors one (and only one) Prometheus endpoint per process. It keeps one (and only one) month of metrics in a SQLite database. It serves one (and only one) dashboard over HTTP. Queries and insights and trends and alerts are out of scope. You just want to see the lines, so what you get are the lines.
+
+## Installation
+
+Clone this repo, `cargo build --release` (with whatever features you desire), write yourself a config file (see [Configuration](#configuration)), and run it.
 
 ## Usage
 
 `grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
 
 `grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options. All of the following commands are also influenced by this flag.
-
-`grafbabe mock /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, then runs the server using the mock data instead of reading from the database. The database is never modified in this case. The data should be in Prometheus format. *(This is only available when grafbabe is compiled with the **mock_data** feature.)*
-
-`grafbabe seed /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, and inserts a single snapshot into the database using the current timestamp, then exits. *(This is only available when grafbabe is compiled with the **mock_data** feature.)*
 
 ## Configuration
 
@@ -34,6 +34,7 @@ listen_addrs = 127.0.0.1:4242
 
 # Address of Prometheus endpoint
 #
+# This is the source of the metrics to collect and visualize.
 # grafbabe must be compiled with the `tls` feature in order to
 # make requests over https.
 #
@@ -104,11 +105,23 @@ log_target = stderr
 
 ```
 
+## Usage during development
+
+Compiling with `--features mock_data` enables the following commands, which lets grafbabe work without a running Prometheus endpoint.
+
+`grafbabe mock /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, then runs the server using the mock data instead of reading from the database. The database is never modified in this case. The data should be in Prometheus format.
+
+`grafbabe seed /path/to/mock.txt` reads fake data from `/path/to/mock.txt`, and inserts a single snapshot into the database using the current timestamp, then exits.
+
 ## Optional features
 
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
 * **tls** allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
+
+Compile with `--no-default-features` to disable default features.
+
+Compile with `--features <list,of,features>` to enable any.
 
 `grafbabe -vv` will show which features were set during compilation.
 
