@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "visualization"]
 [dependencies]
 httparse = "1.10.1"
 env_logger = { version = "0.11.11", default-features = false, features = ["auto-color", "kv"] }
+http = "1.4.2"
 include_str_etag = { path = "./include_str_etag" }
 log = { version = "0.4.33", features = ["kv"] }
 mio = { version = "1.2.0", features = ["net", "os-poll"] }
@@ -23,7 +24,7 @@ serde_json = "1.0"
 ureq = { version = "3.3.0", default-features = false, features = ["gzip"] }
 
 [features]
-default = ["bundled_sqlite", "tls"]
+default = ["bundled_sqlite"]
 bundled_sqlite = ["rusqlite/bundled"]
 mock_data = []
 tls = ["ureq/rustls"]

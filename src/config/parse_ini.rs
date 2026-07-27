@@ -1,4 +1,5 @@
 use super::{Config, DEFAULT_PORT, LogFormat, LogTarget};
+use http::uri::Uri;
 use log::Level;
 use std::{
     fmt,
@@ -14,6 +15,7 @@ pub enum ParseError {
     File(std::io::Error),
     Malformed(String),
     Invalid { key: &'static str, value: String },
+    RequiresFeature { key: &'static str, value: String, feature: &'static str },
     NotValidDir { key: &'static str, value: String },
 }
 
@@ -23,10 +25,13 @@ impl fmt::Display for ParseError {
             ParseError::File(e) => write!(f, "could not open config file: {e}"),
             ParseError::Malformed(s) => write!(f, "malformed line in config: {s}"),
             ParseError::Invalid { key, value } => {
-                write!(f, "{value} is not a valid value for {key}")
+                write!(f, "{value:?} is not a valid value for {key}")
+            }
+            ParseError::RequiresFeature { key, value, feature } => {
+                write!(f, "the value of {key} ({value:?}) requires the feature {feature:?} to be enabled")
             }
             ParseError::NotValidDir { key, value } => {
-                write!(f, "could not read from {value} (value of {key}")
+                write!(f, "could not read from directory {value:?} (value of {key}")
             }
         }
     }
@@ -58,7 +63,7 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
                 config.listen_addrs = parse_listen_addrs(value)?;
             }
             "prometheus_addr" => {
-                config.prometheus_addr = value.into(); // FIXME
+                config.prometheus_addr = parse_prometheus_addr(value)?;
             }
             "frontend_dir" => {
                 if cfg!(debug_assertions) {
@@ -113,9 +118,39 @@ fn parse_listen_addr(addr: &str) -> Result<SocketAddr, ParseError> {
         })
 }
 
-// fn parse_uri(uri: &str) -> Result<&str, ParseError> {
-//     todo!()
-// }
+fn parse_prometheus_addr(uri: &str) -> Result<String, ParseError> {
+    let uri = if uri.contains("://") || uri.starts_with("//") {
+        uri.to_string()
+    } else {
+        format!("http://{uri}")
+    };
+
+    let parsed = uri.parse::<Uri>().map_err(|_| ParseError::Invalid {
+        key: "prometheus_addr",
+        value: uri.to_string(),
+    })?;
+
+    match parsed.scheme_str() {
+        Some("http") => {}
+        Some("https") => {
+            if !cfg!(feature = "tls") {
+                return Err(ParseError::RequiresFeature {
+                    key: "prometheus_addr",
+                    value: uri.to_string(),
+                    feature: "tls",
+                });
+            }
+        }
+        Some(_) | None => {
+            return Err(ParseError::Invalid {
+                key: "prometheus_addr",
+                value: uri.to_string(),
+            });
+        }
+    }
+
+    Ok(uri)
+}
 
 fn parse_frontend_dir(location: &str) -> Result<String, ParseError> {
     let parse_error = Err(ParseError::NotValidDir {

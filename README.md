@@ -34,8 +34,8 @@ listen_addrs = 127.0.0.1:4242
 
 # Address of Prometheus endpoint
 #
-# grafbabe must be compiled with the `tls` feature (which is
-# the default) in order to make requests over https.
+# grafbabe must be compiled with the `tls` feature in order to
+# make requests over https.
 #
 prometheus_addr = http://localhost/metrics
 
@@ -106,9 +106,9 @@ log_target = stderr
 
 ## Optional features
 
-* **tls** (enabled by default) allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
-* **bundled_sqlite** (enabled by defualt) includes SQLite into the binary.
-* **mock_data** as described in [Usage](#usage), it enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`
+* **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
+* **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
+* **tls** allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
 
 `grafbabe -vv` will show which features were set during compilation.
 
