@@ -39,10 +39,10 @@ prometheus_addr = http://localhost/metrics
 # Directory of frontend assets
 #
 # If set, frontend assets will be served from this directory.
-# In dev, the default is the "frontend" directory. In release,
-# the default is to serve assets compiled into the binary.
+# In dev, the default is the "frontend" directory (included in
+# the codebase). In release, this setting is ignored.
 #
-;frontend_dir = frontend
+frontend_dir = frontend
 
 
 # Prometheus endpoint poll rate
@@ -106,12 +106,12 @@ log_target = stderr
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary.
 * **mock_data** as described in [Usage](#usage), it enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`
 
-Use `grafbabe -vv` to see which features were set during compilation.
+`grafbabe -vv` will show which features were set during compilation.
 
 ## Frontend assets
 
-When compiled for dev, grafbabe reads frontend HTML and JavaScript from the `frontend` directory, relative to the current working directory. When compiled in release, those files are written into the binary.
+When compiled for dev, grafbabe reads frontend HTML and JavaScript from the `frontend` directory, relative to the current working directory. The config file's `frontend_dir` value can be used to change this location. This setting is ignored in release.
 
-You can control from where the frontend assets come. In both dev and release, grafbabe will use the config file's `frontend_dir` value. Setting this in release will force grafbabe to serve the frontend from disk when it normally would not. Additionally when compiling for release, setting the `GRAFBABE_FRONTEND` environment variable will control from where the included assets are sourced.
+When compiled in release, frontend assets are written into the binary. As in dev, the default is the `frontend` directory. To change this location, compile grafbabe with the env variable `GRAFBABE_FRONTEND` set to a different location.
 
-Use `grafbabe -vv` to see from where included files were sourced.
+`grafbabe -vv` will show which files were included during compilation.

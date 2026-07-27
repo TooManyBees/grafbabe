@@ -61,7 +61,9 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
                 config.prometheus_addr = value.into(); // FIXME
             }
             "frontend_dir" => {
-                config.frontend_dir = Some(parse_frontend_dir(value)?);
+                if cfg!(debug_assertions) {
+                    config.frontend_dir = Some(parse_frontend_dir(value)?);
+                }
             }
             "poll_rate" => {
                 config.poll_rate_mins = parse_poll_rate(value)?;

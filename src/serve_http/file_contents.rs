@@ -1,24 +1,17 @@
 #[cfg(not(debug_assertions))]
 use include_str_etag::{include_dir_etag, include_dir_root};
 use std::borrow::Cow;
-use std::fs::File;
-use std::io::{Error, ErrorKind, Read};
-use std::path::{Path, absolute};
-use std::time::UNIX_EPOCH;
+use std::io::Error;
 
 pub fn file_contents(
-    root: Option<&str>,
+    #[allow(unused)] root: Option<&str>,
     path: &str,
     if_none_match: Option<&str>,
 ) -> Result<FileResult, Error> {
     #[cfg(debug_assertions)]
     let result = read_file(root, path);
     #[cfg(not(debug_assertions))]
-    let result = if root.is_some() {
-        read_file(root, path)
-    } else {
-        read_included(path)
-    };
+    let result = read_included(path);
 
     if let Some(if_none_match) = if_none_match {
         if let Ok(FileResult::Found { ref etag, .. }) = result {
@@ -40,13 +33,21 @@ pub enum FileResult {
     },
 }
 
+#[cfg(debug_assertions)]
 fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
+    use std::fs::File;
+    use std::io::{ErrorKind, Read};
+    use std::path::Path;
+    use std::time::UNIX_EPOCH;
+
     let root = Path::new(root.unwrap_or("frontend"));
     let path = root.join(filename);
 
-    if !absolute(&path)?.starts_with(absolute(root)?) {
-        log::debug!(path = path.to_string_lossy(); "Requested path outside of frontend directory");
-        return Ok(FileResult::NotFound);
+    if let (Ok(path), Ok(root)) = (path.canonicalize(), root.canonicalize()) {
+        if !path.starts_with(root) {
+            log::debug!(path = path.to_string_lossy(); "Requested path outside of frontend directory");
+            return Ok(FileResult::NotFound);
+        }
     }
 
     let mut file = match File::open(path) {
