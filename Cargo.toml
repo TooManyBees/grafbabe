@@ -1,7 +1,14 @@
 [package]
 name = "grafbabe"
 version = "0.1.0"
+authors = ["Jess Bees"]
 edition = "2024"
+rust-version = "1.95"
+description = "Simple openmetrics stats collector"
+repository = "https://github.com/toomanybees/grafbabe"
+license-file = "LICENSE.txt"
+keywords = ["metrics", "prometheus", "openmetrics", "dashboard", "graph"]
+categories = ["command-line-utilities", "visualization"]
 
 [dependencies]
 httparse = "1.10.1"
