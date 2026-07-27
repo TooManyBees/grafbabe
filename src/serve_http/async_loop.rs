@@ -73,6 +73,10 @@ pub fn serve_http(
         get_metrics(connection, num_samples, window)
     };
 
+    if let Some(frontend_dir) = config.frontend_dir.as_deref() {
+        log::info!(frontend_dir; "Serving live frontend");
+    }
+
     loop {
         poll.poll(&mut events, None)?;
 
@@ -93,9 +97,13 @@ pub fn serve_http(
                     for (token, listener) in &listeners {
                         if event_token == *token {
                             while let Some(stream) = accept_tcp(listener) {
-                                if let Err(error) =
-                                    handle_http(stream, &mut buf, &mut connection, get_metrics_fn)
-                                {
+                                if let Err(error) = handle_http(
+                                    stream,
+                                    &mut buf,
+                                    &mut connection,
+                                    config.frontend_dir.as_deref(),
+                                    get_metrics_fn,
+                                ) {
                                     log::error!("{error}");
                                 }
                             }
@@ -164,9 +172,13 @@ pub fn serve_mock_http(
                     for (token, listener) in &listeners {
                         if event_token == *token {
                             while let Some(stream) = accept_tcp(listener) {
-                                if let Err(error) =
-                                    handle_http(stream, &mut buf, &mut connection, get_metrics_fn)
-                                {
+                                if let Err(error) = handle_http(
+                                    stream,
+                                    &mut buf,
+                                    &mut connection,
+                                    config.frontend_dir.as_deref(),
+                                    get_metrics_fn,
+                                ) {
                                     log::error!("{error}");
                                 }
                             }

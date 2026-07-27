@@ -11,6 +11,7 @@ use crate::database::seed_database;
 use crate::serve_http::serve_http;
 #[cfg(feature = "mock_data")]
 use crate::serve_http::serve_mock_http;
+use log::kv::Value;
 use prometheus_scraper::{Format, ParseError, TextFormat, borrowed::MetricFamily, parse_payload};
 use std::path::absolute;
 
@@ -51,6 +52,7 @@ fn main() {
     log::debug!(
         listen_addrs:? = config.listen_addrs,
         prometheus_addr:% = config.prometheus_addr,
+        frontend_dir = config.frontend_dir.as_deref().map(Value::from).unwrap_or(Value::null()),
         poll_rate_mins:% = config.poll_rate_mins,
         state_location:% = config.state_location.to_string_lossy(),
         log_level:% = config.log_level,

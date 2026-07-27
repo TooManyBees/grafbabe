@@ -3,11 +3,19 @@ use include_str_etag::{include_dir_etag, include_dir_root};
 use std::borrow::Cow;
 use std::io::Error;
 
-pub fn file_contents(path: &str, if_none_match: Option<&str>) -> Result<FileResult, Error> {
+pub fn file_contents(
+    root: Option<&str>,
+    path: &str,
+    if_none_match: Option<&str>,
+) -> Result<FileResult, Error> {
     #[cfg(debug_assertions)]
-    let result = read_file(path);
+    let result = read_file(root, path);
     #[cfg(not(debug_assertions))]
-    let result = read_included(path);
+    let result = if root.is_some() {
+        read_file(root, path)
+    } else {
+        read_included(path)
+    };
 
     if let Some(if_none_match) = if_none_match {
         if let Ok(FileResult::Found { ref etag, .. }) = result {
@@ -29,14 +37,13 @@ pub enum FileResult {
     },
 }
 
-#[cfg(debug_assertions)]
-fn read_file(filename: &str) -> Result<FileResult, Error> {
+fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
     use std::fs::File;
     use std::io::{ErrorKind, Read};
     use std::path::Path;
     use std::time::UNIX_EPOCH;
 
-    let path = Path::new("frontend").join(filename);
+    let path = Path::new(root.unwrap_or("frontend")).join(filename);
     let mut file = match File::open(path) {
         Ok(f) => f,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(FileResult::NotFound),

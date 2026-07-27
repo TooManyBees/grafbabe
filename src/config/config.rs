@@ -18,6 +18,7 @@ pub struct Config {
     pub command: Command,
     pub info_command: Option<InfoCommand>,
     pub listen_addrs: Vec<SocketAddr>,
+    pub frontend_dir: Option<String>,
     pub prometheus_addr: String,
     pub poll_rate_mins: u64,
     pub state_location: PathBuf,
@@ -32,6 +33,11 @@ impl Default for Config {
             command: Command::Serve,
             info_command: None,
             listen_addrs: vec![DEFAULT_LISTEN_ADDR],
+            frontend_dir: if cfg!(debug_assertions) {
+                Some("frontend".to_string())
+            } else {
+                None
+            },
             prometheus_addr: "http://localhost/metrics".to_string(),
             poll_rate_mins: 1,
             state_location: PathBuf::from("."),

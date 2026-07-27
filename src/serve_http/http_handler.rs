@@ -14,6 +14,7 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
     mut stream: TcpStream,
     buf: &mut [u8],
     connection: &mut Connection,
+    frontend_dir: Option<&str>,
     get_metrics_fn: F,
 ) -> Result<(), HttpError> {
     let start_time = Instant::now();
@@ -47,11 +48,13 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
         .and_then(|h| std::str::from_utf8(h.value).ok());
 
     let result = match (method, path) {
-        ("GET", "/") => serve_file(stream, if_none_match, "dashboard.html"),
-        ("GET", "/dashboard.js") => serve_file(stream, if_none_match, "dashboard.js"),
-        ("GET", "/chart.umd.min.js") => serve_file(stream, if_none_match, "chart.umd.min.js"),
+        ("GET", "/") => serve_file(stream, if_none_match, frontend_dir, "dashboard.html"),
+        ("GET", "/dashboard.js") => serve_file(stream, if_none_match, frontend_dir, "dashboard.js"),
+        ("GET", "/chart.umd.min.js") => {
+            serve_file(stream, if_none_match, frontend_dir, "chart.umd.min.js")
+        }
         ("GET", "/chart.umd.min.js.map") => {
-            serve_file(stream, if_none_match, "chart.umd.min.js.map")
+            serve_file(stream, if_none_match, frontend_dir, "chart.umd.min.js.map")
         }
         ("GET", "/metrics") => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
@@ -93,9 +96,10 @@ fn content_type(path: &str) -> Option<&str> {
 fn serve_file(
     mut stream: TcpStream,
     if_none_match: Option<&str>,
+    frontend_dir: Option<&str>,
     path: &str,
 ) -> std::io::Result<StatusCode> {
-    let (contents, etag) = match file_contents(path, if_none_match)? {
+    let (contents, etag) = match file_contents(frontend_dir, path, if_none_match)? {
         FileResult::Found { contents, etag } => (contents, etag),
         FileResult::NotModified => return empty_http_response(stream, StatusCode::NOT_MODIFIED),
         FileResult::NotFound => return empty_http_response(stream, StatusCode::NOT_FOUND),

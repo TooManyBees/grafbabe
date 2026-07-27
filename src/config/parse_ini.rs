@@ -14,6 +14,7 @@ pub enum ParseError {
     File(std::io::Error),
     Malformed(String),
     Invalid { key: &'static str, value: String },
+    NotValidDir { key: &'static str, value: String },
 }
 
 impl fmt::Display for ParseError {
@@ -23,6 +24,9 @@ impl fmt::Display for ParseError {
             ParseError::Malformed(s) => write!(f, "malformed line in config: {s}"),
             ParseError::Invalid { key, value } => {
                 write!(f, "{value} is not a valid value for {key}")
+            }
+            ParseError::NotValidDir { key, value } => {
+                write!(f, "could not read from {value} (value of {key}")
             }
         }
     }
@@ -55,6 +59,9 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
             }
             "prometheus_addr" => {
                 config.prometheus_addr = value.into(); // FIXME
+            }
+            "frontend_dir" => {
+                config.frontend_dir = Some(parse_frontend_dir(value)?);
             }
             "poll_rate" => {
                 config.poll_rate_mins = parse_poll_rate(value)?;
@@ -107,6 +114,25 @@ fn parse_listen_addr(addr: &str) -> Result<SocketAddr, ParseError> {
 // fn parse_uri(uri: &str) -> Result<&str, ParseError> {
 //     todo!()
 // }
+
+fn parse_frontend_dir(location: &str) -> Result<String, ParseError> {
+    let parse_error = Err(ParseError::NotValidDir {
+        key: "frontend_dir",
+        value: location.to_string(),
+    });
+    if !Path::new(location).exists() {
+        return parse_error;
+    }
+    let metadata = match std::fs::metadata(location) {
+        Ok(metadata) => metadata,
+        Err(_) => return parse_error,
+    };
+    if metadata.file_type().is_dir() {
+        return Ok(location.into());
+    } else {
+        return parse_error;
+    }
+}
 
 fn parse_poll_rate(value: &str) -> Result<u64, ParseError> {
     let parse_error = Err(ParseError::Invalid {
