@@ -19,20 +19,24 @@ pub fn usage() {
     }
     eprintln!("");
 
-    eprintln!("\nFlags:
+    eprintln!(
+        "\nFlags:
 \t-c or --config-file <PATH> (path to config file)
 \t-h or --help (you're readin' it)
 \t-v (print version string)
-\t-vv or --version (print more detailed version)\n");
+\t-vv or --version (print more detailed version)\n"
+    );
 
     if cfg!(feature = "mock_data") {
-        eprintln!("Commands:
+        eprintln!(
+            "Commands:
 \tserve (runs the program as normal, serving HTTP requests and polling
 \t\tthe prometheus endpoint in the background; this is the default)
 \tmock <path> (like serve, but reads the file at <path> and uses it as
 \t\tmock data; the file must be in prometheus format; the program will
 \t\tnot poll the prometheus endpoint in the background)
 \tseed <path> (writes a single snapshot to the database, using
-\t\tdata read from <path>; the file must be in prometheus format)\n");
+\t\tdata read from <path>; the file must be in prometheus format)\n"
+        );
     }
 }

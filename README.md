@@ -1,5 +1,9 @@
 # grafbabe
 
+The usecase: you have a service on your $7 VPS that has a Prometheus metrics endpoint. You want to monitor those stats over time, in lines on graphs. Grafana and Graphite exist, and they will OOM your poor, underresourced VPS as soon as you turn them on.
+
+grafbabe monitors one (and only one) Prometheus endpoint per process. It keeps one (and only one) month of metrics. It serves one (and only one) dashboard over HTTP. Queries and insights and trends and alerts are out of scope. You just want to see the lines, so all you get are the lines.
+
 ## Usage
 
 `grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
