@@ -1,11 +1,11 @@
 use super::parse_ini::ParseError;
+use super::version;
 use log::Level;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-pub const PROGRAM_NAME: &'static str = "grafbabe";
 pub const DEFAULT_PORT: u16 = 4242;
 const DEFAULT_LISTEN_ADDR: SocketAddr = if cfg!(debug_assertions) {
     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), DEFAULT_PORT)
@@ -44,7 +44,7 @@ impl Default for Config {
 
 impl Config {
     pub fn database_name(&self) -> PathBuf {
-        Path::new(PROGRAM_NAME).with_added_extension("db3")
+        Path::new(version::NAME).with_added_extension("db3")
     }
 
     pub fn database_path(&self) -> PathBuf {

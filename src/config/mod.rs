@@ -11,7 +11,7 @@ pub use parse_config::parse_config;
 pub use version::{version, version_more};
 
 pub fn usage() {
-    let name = std::env::args().next().unwrap_or(PROGRAM_NAME.to_string());
+    let name = std::env::args().next().unwrap_or(version::NAME.to_string());
     eprintln!(
         "Usage:\t{name} [-ch]
 
