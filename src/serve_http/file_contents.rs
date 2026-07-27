@@ -1,7 +1,10 @@
 #[cfg(not(debug_assertions))]
 use include_str_etag::{include_dir_etag, include_dir_root};
 use std::borrow::Cow;
-use std::io::Error;
+use std::fs::File;
+use std::io::{Error, ErrorKind, Read};
+use std::path::{Path, absolute};
+use std::time::UNIX_EPOCH;
 
 pub fn file_contents(
     root: Option<&str>,
@@ -38,12 +41,14 @@ pub enum FileResult {
 }
 
 fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
-    use std::fs::File;
-    use std::io::{ErrorKind, Read};
-    use std::path::Path;
-    use std::time::UNIX_EPOCH;
+    let root = Path::new(root.unwrap_or("frontend"));
+    let path = root.join(filename);
 
-    let path = Path::new(root.unwrap_or("frontend")).join(filename);
+    if !absolute(&path)?.starts_with(absolute(root)?) {
+        log::debug!(path = path.to_string_lossy(); "Requested path outside of frontend directory");
+        return Ok(FileResult::NotFound);
+    }
+
     let mut file = match File::open(path) {
         Ok(f) => f,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(FileResult::NotFound),

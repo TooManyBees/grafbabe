@@ -49,14 +49,13 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
 
     let result = match (method, path) {
         ("GET", "/") => serve_file(stream, if_none_match, frontend_dir, "dashboard.html"),
-        ("GET", "/dashboard.js") => serve_file(stream, if_none_match, frontend_dir, "dashboard.js"),
-        ("GET", "/chart.umd.min.js") => {
-            serve_file(stream, if_none_match, frontend_dir, "chart.umd.min.js")
-        }
-        ("GET", "/chart.umd.min.js.map") => {
-            serve_file(stream, if_none_match, frontend_dir, "chart.umd.min.js.map")
-        }
         ("GET", "/metrics") => Ok(serve_metrics(stream, query, connection, get_metrics_fn)?),
+        ("GET", path) => serve_file(
+            stream,
+            if_none_match,
+            frontend_dir,
+            path.trim_start_matches('/'),
+        ),
         _ => empty_http_response(stream, StatusCode::NOT_FOUND),
     };
 
