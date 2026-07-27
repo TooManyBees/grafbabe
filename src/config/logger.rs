@@ -1,5 +1,5 @@
-use crate::config::time::Time;
-use crate::config::{Config, LogFormat, LogTarget};
+use super::config::{Config, LogFormat, LogTarget};
+use super::time::Time;
 use log::LevelFilter;
 use std::io::Write;
 use std::time::SystemTime;

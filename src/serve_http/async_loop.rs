@@ -1,7 +1,3 @@
-mod background_poll;
-mod file_contents;
-mod http_handler;
-
 use crate::config::Config;
 use crate::database::get_metrics;
 #[cfg(feature = "mock_data")]
@@ -10,8 +6,7 @@ use crate::models::{Metrics, Window};
 #[cfg(feature = "mock_data")]
 use crate::parse_prometheus;
 use crate::serve_http::background_poll::{background_loop, pull_metrics};
-#[cfg(not(debug_assertions))]
-pub use file_contents::{INCLUDED_FILES, INCLUDED_FILES_ROOT};
+use crate::serve_http::http_handler::handle_http;
 use mio::{Events, Interest, Poll, Token, Waker, net::TcpListener};
 use rusqlite::Connection;
 use std::{
@@ -98,12 +93,9 @@ pub fn serve_http(
                     for (token, listener) in &listeners {
                         if event_token == *token {
                             while let Some(stream) = accept_tcp(listener) {
-                                if let Err(error) = http_handler::handle_http(
-                                    stream,
-                                    &mut buf,
-                                    &mut connection,
-                                    get_metrics_fn,
-                                ) {
+                                if let Err(error) =
+                                    handle_http(stream, &mut buf, &mut connection, get_metrics_fn)
+                                {
                                     log::error!("{error}");
                                 }
                             }
@@ -172,12 +164,9 @@ pub fn serve_mock_http(
                     for (token, listener) in &listeners {
                         if event_token == *token {
                             while let Some(stream) = accept_tcp(listener) {
-                                if let Err(error) = http_handler::handle_http(
-                                    stream,
-                                    &mut buf,
-                                    &mut connection,
-                                    get_metrics_fn,
-                                ) {
+                                if let Err(error) =
+                                    handle_http(stream, &mut buf, &mut connection, get_metrics_fn)
+                                {
                                     log::error!("{error}");
                                 }
                             }

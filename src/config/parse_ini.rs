@@ -1,4 +1,4 @@
-use crate::config::{Config, DEFAULT_PORT, LogFormat, LogTarget};
+use super::{Config, DEFAULT_PORT, LogFormat, LogTarget};
 use log::Level;
 use std::{
     fmt,
