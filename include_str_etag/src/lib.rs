@@ -1,5 +1,5 @@
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::iter::once;
@@ -81,7 +81,26 @@ pub fn include_dir_etag(input: TokenStream) -> TokenStream {
 
     frontend_dir = std::env::var(GRAFBABE_FRONTEND).unwrap_or(frontend_dir.to_string());
 
-    let paths_to_include = list_paths_to_include(&frontend_dir).unwrap();
+    let paths_to_include = match list_paths_to_include(&frontend_dir) {
+        Ok(paths) => paths,
+        Err(e) => if e.kind() == ErrorKind::NotFound {
+            let dir = absolute(&frontend_dir).unwrap_or(frontend_dir.into());
+            let dir_str = dir.to_string_lossy();
+            if std::env::var(GRAFBABE_FRONTEND).is_ok() {
+                panic!("Frontend directory {dir_str} not found (set by {GRAFBABE_FRONTEND})");
+            } else {
+                panic!("Frontend directory {dir_str} not found. You may be compiling outside the project directory, or you removed the `frontend` directory.")
+            }
+        } else {
+            let dir = absolute(&frontend_dir).unwrap_or(frontend_dir.into());
+            let dir_str = dir.to_string_lossy();
+            if std::env::var(GRAFBABE_FRONTEND).is_ok() {
+                panic!("Couldn't include frontend directory {dir_str:?} (set by {GRAFBABE_FRONTEND}): {e}");
+            } else {
+                panic!("Couldn't include frontend directory {dir_str:?}: {e}");
+            }
+        }
+    };
 
     TokenStream::from_iter(
         [
@@ -89,7 +108,13 @@ pub fn include_dir_etag(input: TokenStream) -> TokenStream {
             TokenTree::Group(Group::new(
                 Delimiter::Bracket,
                 TokenStream::from_iter(paths_to_include.iter().map(|path| {
-                    let IncludedFile { contents, etag } = read_file_and_etag(path).unwrap();
+                    let IncludedFile { contents, etag } = match read_file_and_etag(path) {
+                        Ok(f) => f,
+                        Err(e) => {
+                            let path_str = path.to_string_lossy();
+                            panic!("Error reading file {path_str}: {e}");
+                        }
+                    };
                     let path_literal = os_path_to_url_path(path);
                     let path_literal = path_literal
                         .strip_prefix(&frontend_dir)
@@ -159,12 +184,19 @@ fn list_paths_to_include<P: AsRef<Path>>(root: &P) -> std::io::Result<Vec<PathBu
     for entry in std::fs::read_dir(root)? {
         let entry = entry?;
         if entry.file_type()?.is_file() {
-            // TODO make the exclude configurable
-            if entry.path().extension() != Some(OsStr::new("map")) {
-                result.push(entry.path());
+            if let Some(file_name) = entry.path().file_name().map(|s| s.to_string_lossy()) {
+                if file_name.starts_with('.') {
+                    continue;
+                }
+                if file_name.ends_with(".js.map") {
+                    continue
+                }
             }
+            result.push(entry.path());
         }
     }
+
+    result.sort();
 
     Ok(result)
 }
