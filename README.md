@@ -8,6 +8,8 @@ grafbabe monitors one (and only one) Prometheus endpoint per process. It keeps o
 
 Clone this repo, `cargo build --release` (with whatever features you desire), write yourself a config file (see [Configuration](#configuration)), and run it.
 
+Consider a systemd unit file, or whatever task manager nonsense your server needs, to keep grafbabe a babe 24/7.
+
 ## Usage
 
 `grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
@@ -130,5 +132,11 @@ Compile with `--features <list,of,features>` to enable any.
 When compiled for dev, grafbabe reads frontend HTML and JavaScript from the `frontend` directory, relative to the current working directory. The config file's `frontend_dir` value can be used to change this location. This setting is ignored in release.
 
 When compiled in release, frontend assets are written into the binary. As in dev, the default is the `frontend` directory. To change this location, compile grafbabe with the env variable `GRAFBABE_FRONTEND` set to a different location.
+
+Some notes on compiled frontend assets:
+
+* The compiler will include files inside `GRAFBABE_FRONTEND`, but will not descend deeper into directories to find more.
+* The compiler will ignore any dotfiles (files that begin with `.`).
+* The compiler will ignore any JavaScript map files (files with a `.js.map` extension).
 
 `grafbabe -vv` will show which files were included during compilation.

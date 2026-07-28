@@ -45,7 +45,7 @@ fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
 
     if let (Ok(path), Ok(root)) = (path.canonicalize(), root.canonicalize()) {
         if !path.starts_with(root) {
-            log::debug!(path = path.to_string_lossy(); "Requested path outside of frontend directory");
+            log::warn!(path = path.to_string_lossy(); "Requested path outside of frontend directory");
             return Ok(FileResult::NotFound);
         }
     }

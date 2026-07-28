@@ -14,9 +14,19 @@ use std::{
 pub enum ParseError {
     File(std::io::Error),
     Malformed(String),
-    Invalid { key: &'static str, value: String },
-    RequiresFeature { key: &'static str, value: String, feature: &'static str },
-    NotValidDir { key: &'static str, value: String },
+    Invalid {
+        key: &'static str,
+        value: String,
+    },
+    RequiresFeature {
+        key: &'static str,
+        value: String,
+        feature: &'static str,
+    },
+    NotValidDir {
+        key: &'static str,
+        value: String,
+    },
 }
 
 impl fmt::Display for ParseError {
@@ -27,8 +37,15 @@ impl fmt::Display for ParseError {
             ParseError::Invalid { key, value } => {
                 write!(f, "{value:?} is not a valid value for {key}")
             }
-            ParseError::RequiresFeature { key, value, feature } => {
-                write!(f, "the value of {key} ({value:?}) requires the feature {feature:?} to be enabled")
+            ParseError::RequiresFeature {
+                key,
+                value,
+                feature,
+            } => {
+                write!(
+                    f,
+                    "the value of {key} ({value:?}) requires the feature {feature:?} to be enabled"
+                )
             }
             ParseError::NotValidDir { key, value } => {
                 write!(f, "could not read from directory {value:?} (value of {key}")

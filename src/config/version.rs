@@ -18,7 +18,7 @@ pub fn version_more() {
         println!("Included frontend files:");
         let root = crate::serve_http::INCLUDED_FILES_ROOT;
         for (filename, _) in crate::serve_http::INCLUDED_FILES {
-            println!("\t{root}/{filename}");
+            println!("\t{root}/{filename} -> {filename}");
         }
     }
 }
