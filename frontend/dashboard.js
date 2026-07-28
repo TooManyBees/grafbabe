@@ -141,7 +141,19 @@ Chart._adapters._date.override({
 
 const WINDOW_SELECT = document.getElementById("window-select");
 
+const MAX_SAMPLES = {
+  "15m": 15,
+  "30m": 30,
+  "1h": 60,
+  "4h": 60 * 4,
+  "12h": 60 * 12,
+  "1d": 60 * 24,
+  "7d": 60 * 24 * 7,
+  "30d": 60 * 24 * 30,
+}
+
 async function getMetrics(numSamples = 100, sampleWindow = "1h") {
+  numSamples = Math.min(numSamples, MAX_SAMPLES[sampleWindow] || numSamples);
   const metrics = await fetch(`/metrics?num_samples=${numSamples}&window=${sampleWindow}`).then(r => r.json());
   const accumulated = metrics.series.reduce((accum, series) => {
     if (accum.get(series.name) == null) {
