@@ -212,6 +212,9 @@ function createChart(timestamps, metric) {
           display: true,
           text: metric.name,
         },
+        legend: {
+          display: metric.series.some(s => s.label != null),
+        },
       },
       scales: {
         x: {
