@@ -127,11 +127,17 @@ fn get_event_indices_for_window(
         return Ok((min_id..=max_id).collect());
     }
 
-    // FIXME: account for the possibility of a variable sample rate
-    let sample_rate: f32 = window.total_samples() as f32 / num_samples as f32;
+    let ids = tween_ids(min_id, max_id, num_samples);
 
+    Ok(ids)
+}
+
+fn tween_ids(min_id: i64, max_id: i64, num_samples: usize) -> Vec<i64> {
+    let sample_rate = (max_id - min_id) as f32 / (num_samples - 1) as f32;
     let mut ids = Vec::with_capacity(num_samples);
-    for offset in 0..num_samples {
+
+    ids.push(min_id);
+    for offset in (0..num_samples-1).rev() {
         let id_f = max_id as f32 - offset as f32 * sample_rate;
         let id = id_f.round() as i64;
         if id <= 0 {
@@ -140,7 +146,30 @@ fn get_event_indices_for_window(
         ids.push(id);
     }
 
-    ids.dedup(); // Multiple sample points might round to the same integer index
-    ids.reverse(); // Sort in ascending order
-    Ok(ids)
+    ids.dedup(); // Rounding to integers may produce
+    ids
+}
+
+#[cfg(test)]
+mod test {
+    use super::tween_ids;
+
+    #[test]
+    fn tween_ids_returns_range_including_min_and_max() {
+        let min_id = 5i64;
+        let max_id = 10i64;
+        let num_samples = 5usize;
+
+        let result = tween_ids(min_id, max_id, num_samples);
+
+        assert_eq!(num_samples, result.len());
+        assert_eq!(min_id, result[0], "expected first element to be the min_id");
+        assert_eq!(max_id, result[4], "expected last element to be the max_id");
+
+        for window in result.windows(2) {
+            let l = window[0];
+            let r = window[1];
+            assert!(l < r, "expected returned ids to be in ascending order\n {:?}", result);
+        }
+    }
 }
