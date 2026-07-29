@@ -91,6 +91,8 @@ pub fn get_metrics(
     Ok(Metrics { timestamps, series })
 }
 
+const ONE_MINUTE_MS: i64 = 1000 * 60;
+
 fn get_event_indices_for_window(
     connection: &Connection,
     num_samples: usize,
@@ -109,21 +111,33 @@ fn get_event_indices_for_window(
             }
             Err(e) => return Err(e),
         };
-    let min_timestamp = now_ms() - window.as_ms();
+
+    // seek an additional 1m back to account for the fact that the min timestamp will
+    // otherwise land between the oldest event we want, and the one after it
+    let min_timestamp = now_ms() - window.as_ms() - ONE_MINUTE_MS;
     if min_timestamp > max_timestamp {
-        log::warn!("Search window is newer than newest event");
+        log::trace!("search window is newer than newest event, returning empty set");
         return Ok(vec![]);
     }
-    log::debug!(max_id, max_timestamp, min_timestamp; "Found search window");
     let min_id: i64 = connection.query_one(
-        "SELECT MIN(id) FROM events WHERE timestamp >= ?",
+        "SELECT MIN(id) FROM events WHERE timestamp > ?",
         [min_timestamp],
         |row| row.get(0),
     )?; // TODO: log a reason why it's an error if this query returns null
 
+    let num_samples = if num_samples > window.total_samples() {
+        log::trace!("Sample size capped at {}", window.total_samples());
+        window.total_samples()
+    } else {
+        num_samples
+    };
+
+    log::trace!(min_id, min_timestamp, max_id, max_timestamp; "Found search window");
+
     // If there are as many or fewer samples than desired in the window,
     // just return that exact range.
     if max_id - min_id + 1 <= num_samples as i64 {
+        log::trace!("fewer or equal events than desired samples, returning all in {}..={}", min_id, max_id);
         return Ok((min_id..=max_id).collect());
     }
 

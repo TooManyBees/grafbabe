@@ -19,6 +19,7 @@ pub fn init_logger(config: &Config) {
         .filter_level(config.log_level.to_level_filter())
         .filter_module("ureq", LevelFilter::Off)
         .filter_module("rustls", LevelFilter::Off)
+        .filter_module("mio", LevelFilter::Off)
         .format(|formatter, record| {
             let now = SystemTime::now();
             let t = Time::from(now);
