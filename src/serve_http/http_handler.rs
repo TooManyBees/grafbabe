@@ -62,7 +62,7 @@ pub fn handle_http<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, r
     match result {
         Ok(status_code) => {
             let elapsed_ms = Instant::now().duration_since(start_time).as_millis();
-            log::debug!(method, path, status_code = status_code.as_str(), elapsed_ms; "Served response");
+            log::debug!(method, path = req.path, status_code = status_code.as_str(), elapsed_ms; "Served response");
             Ok(())
         }
         Err(e) => Err(HttpError::Respond(e)),
@@ -143,11 +143,11 @@ fn serve_metrics<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, rus
     mut get_metrics_fn: F,
 ) -> Result<StatusCode, HttpError> {
     let query = query.map(parse_querystring);
-    let range = get_queryparam(query.as_deref(), "range");
+    let window_str = get_queryparam(query.as_deref(), "window");
     let num_samples = get_queryparam(query.as_deref(), "num_samples")
         .map(|param| usize::from_str_radix(param, 10));
 
-    let window = match range {
+    let window = match window_str {
         None => Window::Hour,
         Some("15m") => Window::QuarterHour,
         Some("30m") => Window::HalfHour,
@@ -155,8 +155,8 @@ fn serve_metrics<F: FnMut(&mut Connection, usize, Window) -> Result<Metrics, rus
         Some("4h") => Window::Hour4,
         Some("12h") => Window::Hour12,
         Some("1d") => Window::Day,
-        Some("1w") => Window::Week,
-        Some("1m") => Window::Month,
+        Some("7d") => Window::Week,
+        Some("30d") => Window::Month,
         _ => {
             let _ = empty_http_response(stream, StatusCode::BAD_REQUEST);
             return Ok(StatusCode::BAD_REQUEST);
