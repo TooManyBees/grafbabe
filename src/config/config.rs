@@ -22,6 +22,7 @@ pub struct Config {
     pub prometheus_addr: String,
     pub poll_rate_mins: u64,
     pub state_location: PathBuf,
+    pub database_name: String,
     pub log_level: Level,
     pub log_format: LogFormat,
     pub log_target: LogTarget,
@@ -41,6 +42,7 @@ impl Default for Config {
             prometheus_addr: "http://localhost/metrics".to_string(),
             poll_rate_mins: 1,
             state_location: PathBuf::from("."),
+            database_name: version::NAME.into(),
             log_level: Level::Info,
             log_format: LogFormat::Plain,
             log_target: LogTarget::Stderr,
@@ -50,7 +52,7 @@ impl Default for Config {
 
 impl Config {
     pub fn database_name(&self) -> PathBuf {
-        Path::new(version::NAME).with_added_extension("db3")
+        Path::new(&self.database_name).with_added_extension("db3")
     }
 
     pub fn database_path(&self) -> PathBuf {

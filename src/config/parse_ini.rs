@@ -93,6 +93,9 @@ pub fn parse_ini(path: &Path) -> Result<Config, ParseError> {
             "state_location" => {
                 config.state_location = value.into();
             }
+            "database_name" => {
+                config.database_name = value.into();
+            }
             "log_level" => {
                 config.log_level = parse_log_level(value)?;
             }

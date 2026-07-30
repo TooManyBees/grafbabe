@@ -56,7 +56,7 @@ frontend_dir = frontend
 #
 # The duration to wait between polling `prometheus_addr` metrics.
 #
-# Valid values are a decimal number followed by `m` for minutes, (
+# Valid values are a decimal number followed by `m` for minutes,
 # `h` for hours, or `d` for days.
 #
 # Note: grafbabe is hardcoded to store a maximum of 1 month of
@@ -78,6 +78,16 @@ poll_rate = 1m
 # If the location is omitted, it defaults to the current directory.
 #
 state_location = /var/lib/grafbabe
+
+
+# Database name
+#
+# The database path is {state_location}/{database_name}.db3. If you
+# leave this blank, it defaults to "grafbabe". Set this if you want
+# multiple grafbabe processes storing their data in the same state
+# location.
+#
+;database_name = grafbabe
 
 
 # Log level

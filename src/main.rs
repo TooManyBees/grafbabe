@@ -55,6 +55,7 @@ fn main() {
         frontend_dir = config.frontend_dir.as_deref().map(Value::from).unwrap_or(Value::null()),
         poll_rate_mins:% = config.poll_rate_mins,
         state_location:% = config.state_location.to_string_lossy(),
+        database_name:% = config.database_name,
         log_level:% = config.log_level,
         log_format:? = config.log_format;
         "Using config",
