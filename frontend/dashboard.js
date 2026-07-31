@@ -31,6 +31,7 @@ const FORMATTERS = {
   hour: new Intl.DateTimeFormat(navigator.language, {
     hour12: false,
     hour: "numeric",
+    minute: "numeric",
   }),
   day: new Intl.DateTimeFormat(navigator.language, {
     month: "short",
@@ -255,12 +256,18 @@ function createChart(timestamps, metric) {
           parser: false,
           type: "time",
           time: {
-            unit: "minutes",
+            // unit: "minute"
+            // unit: TICK_UNITS[sampleWindow],
+          },
+          ticks: {
+            // display: true,
+            // source: "auto",
+            major: {
+              enabled: true,
+            },
           },
         },
-        y: {
-          suggestedMin: 0,
-        }
+        y: {},
       },
     },
   });
