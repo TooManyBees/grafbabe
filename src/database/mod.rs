@@ -54,7 +54,7 @@ pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
     rusqlite::vtab::array::load_module(connection.as_ref())?;
     if let OpenResult::New(ref c) = connection {
         log::debug!("Initializing new database");
-        init_database(c)?
+        init_database(c)?;
     }
     Ok(connection.unwrap())
 }
