@@ -72,7 +72,28 @@ Chart._adapters._date.override({
     throw new Error(`Not a date: ${JSON.stringify(value)}`);
   },
   add: function(t1, t2, unit) {
-    return t1 + t2;
+    switch (unit) {
+    case 'millisecond':
+      return t1 + t2;
+    case 'second':
+      return t1 + t2 * 1000;
+    case 'minute':
+      return t1 + t2 * 1000 * 60;
+    case 'hour':
+      return t1 + t2 * 1000 * 60 * 60;
+    case 'day':
+      return t1 + t2 * 1000 * 60 * 60 * 24;
+    case 'week':
+      return t1 + t2 * 1000 * 60 * 60 * 24 * 7;
+    case 'month':
+      return t1 + t2 * 1000 * 60 * 60 * 24 * 30;
+    case 'quarter':
+      return t1 + t2 * 1000 * 60 * 60 * 24 * 30 * 4;
+    case 'year':
+      return t1 + t2 * 1000 * 60 * 60 * 24 * 365;
+    default:
+      return t1;
+    }
   },
   diff: function(t1, t2, unit) {
     const diff = t1 - t2;
@@ -93,6 +114,8 @@ Chart._adapters._date.override({
       return diff / 604800000;
     case "month":
       return diff / 18144000000;
+    default:
+      return 0;
     }
   },
   startOf: function(time, unit) {
