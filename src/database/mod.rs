@@ -18,7 +18,7 @@ pub use store_snapshot::store_snapshot;
 
 use prometheus_scraper::owned::MetricType;
 use rusqlite::{
-    Connection, OpenFlags, ErrorCode,
+    Connection, ErrorCode, OpenFlags,
     types::{ToSql, ToSqlOutput, Value},
 };
 use std::path::Path;
@@ -91,9 +91,9 @@ fn open_or_create<P: AsRef<Path>>(path: P) -> rusqlite::Result<OpenResult> {
                 // Recover from not being able to open database from lack of
                 // SQLITE_OPEN_CREATE
             } else {
-                return Err(e)
+                return Err(e);
             }
-        },
+        }
     };
 
     log::info!(database:% = path.as_ref().display(); "Creating new database");
