@@ -137,7 +137,11 @@ fn get_event_indices_for_window(
     // If there are as many or fewer samples than desired in the window,
     // just return that exact range.
     if max_id - min_id + 1 <= num_samples as i64 {
-        log::trace!("fewer or equal events than desired samples, returning all in {}..={}", min_id, max_id);
+        log::trace!(
+            "fewer or equal events than desired samples, returning all in {}..={}",
+            min_id,
+            max_id
+        );
         return Ok((min_id..=max_id).collect());
     }
 
@@ -151,7 +155,7 @@ fn tween_ids(min_id: i64, max_id: i64, num_samples: usize) -> Vec<i64> {
     let mut ids = Vec::with_capacity(num_samples);
 
     ids.push(min_id);
-    for offset in (0..num_samples-1).rev() {
+    for offset in (0..num_samples - 1).rev() {
         let id_f = max_id as f32 - offset as f32 * sample_rate;
         let id = id_f.round() as i64;
         if id <= 0 {
@@ -183,7 +187,11 @@ mod test {
         for window in result.windows(2) {
             let l = window[0];
             let r = window[1];
-            assert!(l < r, "expected returned ids to be in ascending order\n {:?}", result);
+            assert!(
+                l < r,
+                "expected returned ids to be in ascending order\n {:?}",
+                result
+            );
         }
     }
 }

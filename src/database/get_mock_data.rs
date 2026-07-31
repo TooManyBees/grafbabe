@@ -14,7 +14,9 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
         .rev()
         .collect();
 
-    let fraction = window.duration().div_duration_f32(Duration::from_hours(24 * 30));
+    let fraction = window
+        .duration()
+        .div_duration_f32(Duration::from_hours(24 * 30));
 
     let series = mock_data
         .iter()
