@@ -132,3 +132,80 @@ fn last_migration(connection: &Connection) -> rusqlite::Result<Option<String>> {
         Err(e) => Err(e),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::{MIGRATIONS, last_migration, migrate};
+    use rusqlite::Connection;
+
+    #[test]
+    fn last_migration_returns_none_on_new_db() {
+        let db = in_memory_db();
+        let last_migration_name = last_migration(&db);
+        assert_eq!(Ok(None), last_migration_name);
+    }
+
+    #[test]
+    fn last_migration_returns_name_of_last_migration() {
+        let db = in_memory_db();
+        let expected_name = "5678_cool_migration";
+        db.execute(
+            "CREATE TABLE grafbabe_migrations (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            ) STRICT;",
+            [],
+        )
+        .expect("couldn't insert migrations table");
+        db.execute(
+            "INSERT INTO grafbabe_migrations (name)
+            VALUES (?1);",
+            [expected_name],
+        )
+        .expect("couldn't insert the name of a migration");
+
+        let last_migration_name = last_migration(&db);
+
+        assert_eq!(Ok(Some(expected_name.to_string())), last_migration_name);
+    }
+
+    #[test]
+    fn all_the_migrations_work() {
+        let mut db = in_memory_db();
+        migrate(&mut db).expect("migrations failed");
+    }
+
+    #[test]
+    fn migration_function_records_migration_names() {
+        let mut db = in_memory_db();
+        let _ = migrate(&mut db);
+
+        let inserted_migration_names = {
+            let mut statement = db
+                .prepare("SELECT name FROM grafbabe_migrations ORDER BY id ASC")
+                .expect("couldn't prepare statement");
+            let mut rows = statement.query([]).expect("couldn't query db");
+            let mut names: Vec<String> = Vec::with_capacity(MIGRATIONS.len());
+            while let Some(row) = rows.next().expect("couldn't read next row") {
+                names.push(row.get(0).expect("couldn't scan name from row"));
+            }
+            names
+        };
+
+        let all_migration_names: Vec<String> =
+            MIGRATIONS.iter().map(|m| m.name.to_string()).collect();
+
+        assert_eq!(all_migration_names, inserted_migration_names);
+    }
+
+    fn in_memory_db() -> Connection {
+        in_memory_db_inner().expect("couldn't create in-memory db")
+    }
+
+    fn in_memory_db_inner() -> rusqlite::Result<Connection> {
+        let db = Connection::open_in_memory()?;
+        db.pragma_update(None, "foreign_keys", "ON")?;
+        rusqlite::vtab::array::load_module(&db)?;
+        Ok(db)
+    }
+}
