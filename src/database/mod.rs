@@ -18,7 +18,7 @@ pub use store_snapshot::store_snapshot;
 
 use prometheus_scraper::owned::MetricType;
 use rusqlite::{
-    Connection, OpenFlags, ffi,
+    Connection, OpenFlags, ErrorCode,
     types::{ToSql, ToSqlOutput, Value},
 };
 use std::path::Path;
@@ -86,18 +86,13 @@ fn open_or_create<P: AsRef<Path>>(path: P) -> rusqlite::Result<OpenResult> {
         OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     ) {
         Ok(c) => return Ok(OpenResult::Existing(c)),
-        Err(e) => match e {
-            rusqlite::Error::SqliteFailure(
-                ffi::Error {
-                    code: ffi::ErrorCode::CannotOpen,
-                    ..
-                },
-                _,
-            ) => {
+        Err(e) => {
+            if let Some(ErrorCode::CannotOpen) = e.sqlite_error_code() {
                 // Recover from not being able to open database from lack of
                 // SQLITE_OPEN_CREATE
+            } else {
+                return Err(e)
             }
-            _ => return Err(e),
         },
     };
 
