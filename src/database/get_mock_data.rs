@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 
 pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Window) -> Metrics {
     let now = SystemTime::now();
+    let num_samples = num_samples.min(window.total_samples());
     let time_slice = window.duration() / num_samples as u32;
     let timestamps: Vec<_> = (0..num_samples as u32)
         .map(|n| now - time_slice * (num_samples as u32 - n))
