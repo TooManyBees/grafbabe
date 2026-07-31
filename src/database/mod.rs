@@ -10,7 +10,7 @@ mod store_snapshot;
 pub use get_metrics::get_metrics;
 #[cfg(feature = "mock_data")]
 pub use get_mock_data::get_mock_data;
-pub use init::init_database;
+use init::init_database;
 pub use prune_old_metrics::prune_old_metrics;
 #[cfg(feature = "mock_data")]
 pub use seed_database::seed_database;
@@ -18,7 +18,7 @@ pub use store_snapshot::store_snapshot;
 
 use prometheus_scraper::owned::MetricType;
 use rusqlite::{
-    Connection,
+    Connection, OpenFlags, ffi,
     types::{ToSql, ToSqlOutput, Value},
 };
 use std::path::Path;
@@ -44,11 +44,73 @@ impl ToSql for SqlMetricType {
 }
 
 pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
-    let connection = Connection::open(&path)?;
-    connection.pragma_update(None, "journal_mode", "WAL")?;
-    connection.pragma_update(None, "foreign_keys", "ON")?;
-    rusqlite::vtab::array::load_module(&connection)?;
-    Ok(connection)
+    let connection = open_or_create(&path)?;
+    connection
+        .as_ref()
+        .pragma_update(None, "journal_mode", "WAL")?;
+    connection
+        .as_ref()
+        .pragma_update(None, "foreign_keys", "ON")?;
+    rusqlite::vtab::array::load_module(connection.as_ref())?;
+    if let OpenResult::New(ref c) = connection {
+        log::debug!("Initializing new database");
+        init_database(c)?
+    }
+    Ok(connection.unwrap())
+}
+
+enum OpenResult {
+    New(Connection),
+    Existing(Connection),
+}
+
+impl OpenResult {
+    fn as_ref(&self) -> &Connection {
+        match self {
+            OpenResult::New(c) => &c,
+            OpenResult::Existing(c) => &c,
+        }
+    }
+
+    fn unwrap(self) -> Connection {
+        match self {
+            OpenResult::New(c) => c,
+            OpenResult::Existing(c) => c,
+        }
+    }
+}
+
+fn open_or_create<P: AsRef<Path>>(path: P) -> rusqlite::Result<OpenResult> {
+    match Connection::open_with_flags(
+        &path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ) {
+        Ok(c) => return Ok(OpenResult::Existing(c)),
+        Err(e) => match e {
+            rusqlite::Error::SqliteFailure(
+                ffi::Error {
+                    code: ffi::ErrorCode::CannotOpen,
+                    ..
+                },
+                _,
+            ) => {
+                // Recover from not being able to open database from lack of
+                // SQLITE_OPEN_CREATE
+            }
+            _ => return Err(e),
+        },
+    };
+
+    log::info!(database:% = path.as_ref().display(); "Creating new database");
+
+    let connection = Connection::open_with_flags(
+        &path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_CREATE
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+
+    Ok(OpenResult::New(connection))
 }
 
 fn now_ms() -> i64 {

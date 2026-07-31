@@ -64,7 +64,6 @@ fn main() {
     let database_path = config.database_path();
 
     let connection = database::get_connection(database_path).unwrap();
-    database::init_database(&connection).unwrap();
 
     match config.command {
         #[cfg(feature = "mock_data")]
