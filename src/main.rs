@@ -63,7 +63,25 @@ fn main() {
 
     let database_path = config.database_path();
 
-    let connection = database::get_connection(database_path).unwrap();
+    let mut connection = match database::get_connection(&database_path) {
+        Ok(c) => c,
+        Err(e) => {
+            log::error!(
+                database_path:% = database_path.to_string_lossy(),
+                error:% = e;
+                "Could not open database",
+            );
+            std::process::exit(1);
+        }
+    };
+
+    match database::auto_migrate(&mut connection, &database_path) {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!(error:% = e; "Could not migrate database");
+            std::process::exit(1);
+        }
+    }
 
     match config.command {
         #[cfg(feature = "mock_data")]
