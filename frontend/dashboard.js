@@ -100,6 +100,17 @@ Chart._adapters._date.override({
     switch (unit) {
     case "millisecond":
       return time;
+    case "second":
+      return time - date.getMilliseconds();
+    case "minute":
+      return time
+        - date.getMilliseconds()
+        - (date.getSeconds() * 1000);
+    case "hour":
+      return time
+        - date.getMilliseconds()
+        - (date.getSeconds() * 1000)
+        - (date.getMinutes() * 60000);
     case "day":
       return time
         - date.getMilliseconds()
