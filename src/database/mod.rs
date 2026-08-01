@@ -22,6 +22,7 @@ use rusqlite::{
     Connection, ErrorCode, OpenFlags,
     types::{ToSql, ToSqlOutput, Value},
 };
+use std::error::Error;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -44,7 +45,7 @@ impl ToSql for SqlMetricType {
     }
 }
 
-pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
+pub fn get_connection<P: AsRef<Path>>(path: P) -> Result<Connection, Box<dyn Error>> {
     let mut connection = open_or_create(&path)?;
     connection
         .as_ref()

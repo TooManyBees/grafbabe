@@ -1,6 +1,6 @@
 use rusqlite::{Batch, Connection, Transaction, fallible_iterator::FallibleIterator};
 use std::error::Error;
-use std::{fs, path::Path};
+use std::{fmt, fs, path::Path};
 
 pub struct Migration {
     name: &'static str,
@@ -37,7 +37,7 @@ static MIGRATIONS: &'static [Migration] = &[
     include_migration!("000_init"),
 ];
 
-pub fn migrate(connection: &mut Connection) -> rusqlite::Result<()> {
+pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
     if MIGRATIONS.is_empty() {
         return Ok(());
     }
@@ -63,9 +63,11 @@ pub fn migrate(connection: &mut Connection) -> rusqlite::Result<()> {
     let transaction = connection.transaction()?;
     for migration in migrations_to_run {
         log::info!("Running migration {}", migration.name);
-        migration.execute(&transaction)?;
+        migration
+            .execute(&transaction)
+            .map_err(|e| MigrationError::from_migration(&migration, e))?;
     }
-    transaction.commit()
+    Ok(transaction.commit()?)
 }
 
 pub fn auto_migrate<P: AsRef<Path>>(
@@ -133,6 +135,84 @@ fn last_migration(connection: &Connection) -> rusqlite::Result<Option<String>> {
     }
 }
 
+#[derive(Debug)]
+pub enum MigrationError {
+    Rusqlite(rusqlite::Error),
+    Syntax {
+        name: &'static str,
+        message: String,
+        index: (usize, usize),
+        queries: &'static str,
+    },
+    Migration {
+        name: &'static str,
+        cause: rusqlite::Error,
+    },
+}
+
+impl fmt::Display for MigrationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MigrationError::Rusqlite(e) => e.fmt(f),
+            MigrationError::Syntax {
+                name,
+                message,
+                index: (line, col),
+                queries,
+            } => {
+                write!(
+                    f,
+                    "{message}, in {name}.sql, line {line}, column {col}:\n{queries}"
+                )
+            }
+            MigrationError::Migration { name, cause } => {
+                write!(f, "Error running migration {name}.sql: {cause}")
+            }
+        }
+    }
+}
+
+impl MigrationError {
+    fn from_migration(migration: &Migration, error: rusqlite::Error) -> MigrationError {
+        match error {
+            rusqlite::Error::SqlInputError {
+                msg, offset, sql, ..
+            } => {
+                let index = migration.queries.find(&sql).unwrap_or(0) + offset as usize;
+                let (line, col) = find_line_col(migration.queries, index);
+                MigrationError::Syntax {
+                    name: migration.name,
+                    message: msg,
+                    index: (line, col),
+                    queries: migration.queries,
+                }
+            }
+            e => MigrationError::Migration {
+                name: migration.name,
+                cause: e,
+            },
+        }
+    }
+}
+
+impl From<rusqlite::Error> for MigrationError {
+    fn from(error: rusqlite::Error) -> MigrationError {
+        MigrationError::Rusqlite(error)
+    }
+}
+
+impl Error for MigrationError {}
+
+fn find_line_col(s: &str, index: usize) -> (usize, usize) {
+    let mut line = 0;
+    let mut col = 0;
+    for l in s[0..=index].lines() {
+        line += 1;
+        col = l.len();
+    }
+    (line, col)
+}
+
 #[cfg(test)]
 mod test {
     use super::{MIGRATIONS, last_migration, migrate};
@@ -173,12 +253,6 @@ mod test {
     fn all_the_migrations_work() {
         let mut db = in_memory_db();
         migrate(&mut db).expect("migrations failed");
-    }
-
-    #[test]
-    fn migration_function_records_migration_names() {
-        let mut db = in_memory_db();
-        let _ = migrate(&mut db);
 
         let inserted_migration_names = {
             let mut statement = db

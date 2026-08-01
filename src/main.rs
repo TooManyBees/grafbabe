@@ -78,7 +78,7 @@ fn main() {
     match database::auto_migrate(&mut connection, &database_path) {
         Ok(_) => {}
         Err(e) => {
-            log::error!(error:% = e; "Could not migrate database");
+            log::error!(error:% = e; "Database migration required, but failed");
             std::process::exit(1);
         }
     }
