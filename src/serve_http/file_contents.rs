@@ -1,5 +1,5 @@
 #[cfg(not(debug_assertions))]
-use include_str_etag::{include_dir_etag, include_dir_root};
+use grafbabe_macros::{include_dir_etag, include_dir_root};
 use std::borrow::Cow;
 use std::io::Error;
 

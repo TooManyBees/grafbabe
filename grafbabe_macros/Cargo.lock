@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "include_str_etag"
+name = "grafbabe_macros"
 version = "0.0.0"
 dependencies = [
  "xxhash-rust",

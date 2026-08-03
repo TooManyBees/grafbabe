@@ -1,7 +1,9 @@
 [package]
-name = "include_str_etag"
+name = "grafbabe_macros"
 version = "0.0.0"
 edition = "2024"
+license-file = "LICENSE.txt"
+description = "internals for grafbabe crate"
 
 [lib]
 proc-macro = true
