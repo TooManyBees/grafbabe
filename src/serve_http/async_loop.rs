@@ -90,7 +90,7 @@ pub fn serve_http(
                     if let Err(error) =
                         pull_metrics(&mut connection, &http_client, &config.prometheus_addr)
                     {
-                        log::error!("{error}");
+                        log::error!(error:%; "Failed to pull metrics");
                     }
                 }
                 event_token => {
@@ -104,7 +104,7 @@ pub fn serve_http(
                                     config.frontend_dir.as_deref(),
                                     get_metrics_fn,
                                 ) {
-                                    log::error!("{error}");
+                                    log::error!(error:%; "Error serving HTTP request");
                                 }
                             }
                             break;

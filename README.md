@@ -128,6 +128,7 @@ Compiling with `--features mock_data` enables the following commands, which lets
 ## Optional features
 
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
+* **color** (enabled by default) supports color ANSI output when log format is set to "pretty".
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
 * **tls** allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
 
