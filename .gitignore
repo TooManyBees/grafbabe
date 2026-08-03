@@ -5,3 +5,5 @@
 *.db3-shm
 *.db3-wal
 *.mock.txt
+.github
+*.ini
