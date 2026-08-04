@@ -9,8 +9,12 @@ pub fn version() {
 pub fn version_more() {
     println!("{NAME} {VERSION}");
     println!("Compiled with features:");
-    for feature in FEATURES.split(' ') {
-        println!("\t{feature}");
+    if FEATURES.is_empty() {
+        println!("\t<NONE>");
+    } else {
+        for feature in FEATURES.split(' ') {
+            println!("\t{feature}");
+        }
     }
 
     #[cfg(not(debug_assertions))]
