@@ -112,6 +112,7 @@ log_format = plain
 # - none (no logging)
 # - stdout
 # - stderr
+# - systemd-journal (only when compiled with systemd_journal feature)
 #
 log_target = stderr
 
@@ -130,6 +131,7 @@ Compiling with `--features mock_data` enables the following commands, which lets
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
 * **color** (enabled by default) supports color ANSI output when log format is set to "pretty".
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
+* **systemd_journal** enables the log target "systemd-journal"
 * **tls** allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
 
 Compile with `--no-default-features` to disable default features.

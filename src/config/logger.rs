@@ -4,12 +4,26 @@ use env_logger::fmt::{Formatter, Target, WriteStyle};
 use log::{LevelFilter, kv};
 use std::time::SystemTime;
 use std::{io, io::Write};
+#[cfg(feature = "systemd_journal")]
+use systemd_journal_logger::{JournalLog, connected_to_journal};
 
 pub fn init_logger(config: &Config) {
     let target = match config.log_target {
         LogTarget::None => return,
         LogTarget::Stdout => Target::Stdout,
         LogTarget::Stderr => Target::Stderr,
+        #[cfg(feature = "systemd_journal")]
+        LogTarget::SystemdJournal => {
+            if connected_to_journal() {
+                match init_journal_logger(config) {
+                    Ok(()) => return,
+                    Err(e) => {
+                        eprintln!("Failed to connect to systemd journal: {e}");
+                    }
+                }
+            }
+            Target::Stderr
+        }
     };
     let log_format = config.log_format;
 
@@ -50,6 +64,13 @@ pub fn init_logger(config: &Config) {
         LogFormat::Pretty => logger.write_style(WriteStyle::Auto).init(),
         LogFormat::Plain => logger.write_style(WriteStyle::Never).init(),
     }
+}
+
+#[cfg(feature = "systemd_journal")]
+fn init_journal_logger(config: &Config) -> io::Result<()> {
+    JournalLog::new()?.install().unwrap();
+    log::set_max_level(config.log_level.to_level_filter());
+    Ok(())
 }
 
 static NEEDS_ESCAPE_PRETTY: &'static [char] = &[' ', '"', '\\'];

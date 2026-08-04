@@ -259,6 +259,8 @@ fn parse_log_target(target: &str) -> Result<LogTarget, ParseError> {
         "none" => Ok(LogTarget::None),
         "stdout" => Ok(LogTarget::Stdout),
         "stderr" => Ok(LogTarget::Stderr),
+        #[cfg(feature = "systemd_journal")]
+        "systemd-journal" => Ok(LogTarget::SystemdJournal),
         _ => Err(ParseError::Invalid {
             key: "log_target",
             value: target.to_string(),

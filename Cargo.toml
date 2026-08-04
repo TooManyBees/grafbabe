@@ -22,6 +22,7 @@ prometheus-scraper = { version = "0.1.2", default-features = false }
 rusqlite = { version = "0.40.1", default-features = false, features = ["array", "vtab"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+systemd-journal-logger = { version = "2.2.2", optional = true }
 ureq = { version = "3.3.0", default-features = false, features = ["gzip"] }
 
 [features]
@@ -29,4 +30,5 @@ default = ["bundled_sqlite", "color"]
 bundled_sqlite = ["rusqlite/bundled"]
 color = ["dep:anstyle", "env_logger/auto-color"]
 mock_data = []
+systemd_journal = ["dep:systemd-journal-logger"]
 tls = ["ureq/rustls"]

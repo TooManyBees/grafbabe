@@ -94,6 +94,8 @@ pub enum LogTarget {
     Stdout,
     #[default]
     Stderr,
+    #[cfg(feature = "systemd_journal")]
+    SystemdJournal,
 }
 
 #[derive(Debug)]
