@@ -5,6 +5,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+  RUSTUP_CHANNEL: "1.97"
+
 jobs:
   build:
     strategy:
@@ -22,14 +26,9 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
-      - name: Install rust toolchain
-        id: rust-toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.97.1
-          target: ${{ matrix.target }}
-          override: true
+      - name: Install Rust toolchain
+        run: |
+          rustup install "$RUSTUP_CHANNEL" --profile=minimal && rustup default "$RUSTUP_CHANNEL"
       - name: Build
         run: cargo build --release --locked
       - name: Compress
