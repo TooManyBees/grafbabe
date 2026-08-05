@@ -4,6 +4,8 @@ The usecase: you have a service on your $7 VPS that has a Prometheus metrics end
 
 grafbabe monitors one (and only one) Prometheus endpoint per process. It keeps one (and only one) month of metrics in a SQLite database. It serves one (and only one) dashboard over HTTP. Queries and insights and trends and alerts are out of scope. You just want to see the lines, so what you get are the lines.
 
+I'm not saying this program is *good*, just that it's *good enough* for me, and maybe it's good enough for you.
+
 ## Installation
 
 Clone this repo, `cargo build --release` (with whatever features you desire), write yourself a config file (see [Configuration](#configuration)), and run it.
