@@ -1,7 +1,8 @@
 name: Build for release
 
 on:
-  release: [published]
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
