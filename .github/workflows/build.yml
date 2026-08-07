@@ -21,14 +21,17 @@ jobs:
         os:
           - image: "ubuntu-latest"
             target: "x86_64-unknown-linux-gnu"
+            binary-name: grafbabe
             compress-command: "tar -czvf"
             asset-extension: "tgz"
           - image: "macos-latest"
             target: "aarch64-apple-darwin"
+            binary-name: grafbabe
             compress-command: "tar -czvf"
             asset-extension: "tgz"
           - image: "windows-latest"
             target: "x86_64-pc-windows-msvc"
+            binary-name: grafbabe.exe
             compress-command: "7z a -tzip"
             asset-extension: "zip"
     name: Build ${{ matrix.os.target }}
@@ -43,7 +46,7 @@ jobs:
       - name: Compress
         run: |
           cd target/release
-          ${{ matrix.os.compress-command }} "grafbabe.${{ matrix.os.target }}.${{ matrix.os.asset-extension }}" grafbabe
+          ${{ matrix.os.compress-command }} "grafbabe.${{ matrix.os.target }}.${{ matrix.os.asset-extension }}" ${{ matrix.os.binary-name }}
       - name: Upload asset to release
         if: github.event.release
         uses: shogo82148/actions-upload-release-asset@8dbaa4469aa7256e70624d72f2567fac8f5341b3
