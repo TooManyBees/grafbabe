@@ -8,7 +8,7 @@ const FORMATTERS = {
     day: "numeric",
     hour: "numeric",
     minute: "numeric",
-    second: "numeric",
+    // second: "numeric",
   }),
   millisecond: new Intl.DateTimeFormat(navigator.language, {
     hour12: false,
