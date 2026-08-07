@@ -25,7 +25,7 @@ jobs:
             asset-extension: "tgz"
           - image: "macos-latest"
             target: "aarch64-apple-darwin"
-            compress-compand: "tar -czvf"
+            compress-command: "tar -czvf"
             asset-extension: "tgz"
           - image: "windows-latest"
             target: "x86_64-pc-windows-msvc"
@@ -37,8 +37,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v3
       - name: Install Rust toolchain
-        run: |
-          rustup install "$RUSTUP_CHANNEL" --profile=minimal && rustup default "$RUSTUP_CHANNEL"
+        uses: dtolnay/rust-toolchain@1.95
       - name: Build
         run: cargo build --release --locked
       - name: Compress
