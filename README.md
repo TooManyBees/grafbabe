@@ -2,13 +2,27 @@
 
 The usecase: you have a service on your $7 VPS that has a Prometheus metrics endpoint. You want to monitor those stats over time, in lines on graphs. Grafana and Graphite exist, and they will OOM your poor, underresourced VPS as soon as you turn them on.
 
-grafbabe monitors one (and only one) Prometheus endpoint per process. It keeps one (and only one) month of metrics in a SQLite database. It serves one (and only one) dashboard over HTTP. Queries and insights and trends and alerts are out of scope. You just want to see the lines, so what you get are the lines.
+If all you want is lines on graphs, high five, because grafbabe will give you lines on graphs. I'm not saying this program is *good*, just that it's *good enough* for me, and maybe it's good enough for you.
 
-I'm not saying this program is *good*, just that it's *good enough* for me, and maybe it's good enough for you.
+## What it does
+
+* Monitors one (and only one) Prometheus endpoint per process
+* Collects one (and only one) month of metrics in a SQLite database
+* Serves one (and only one) dashboard over HTTP
+* Shows lines on graphs, that's it
+
+## What it does not do
+
+* Queries, insights, trends, alerts: these are all out of scope
+* Terminate TLS for its dashboard page (use a reverse proxy for this)
+* Hide the dashboard behind authentication (use a reverse proxy for this)
+* Allow dynamic customization of the dashboard (but you can make your own, and manually compile them into your own binary)
 
 ## Installation
 
-Clone this repo, `cargo build --release` (with whatever features you desire), write yourself a config file (see [Configuration](#configuration)), and run it.
+Precompiled binaries with default features are attached to [each release](https://github.com/TooManyBees/grafbabe/releases). Alternatively, either `cargo install` or clone this repo and `cargo build --release`, choosing the features that you want (see [Cargo feature options](https://doc.rust-lang.org/cargo/reference/features.html#command-line-feature-options))).
+
+Write yourself a config file (see [Configuration](#configuration)).
 
 Consider a systemd unit file, or whatever task manager nonsense your server needs, to keep grafbabe a babe 24/7.
 
@@ -16,7 +30,13 @@ Consider a systemd unit file, or whatever task manager nonsense your server need
 
 `grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
 
-`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options. All of the following commands are also influenced by this flag.
+`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options.
+
+Newer versions may try to upgrade your database in place, but they will back up the existing database before attempting to do so. `grafbabe -vv` will list the migrations known to it, which you can compare to the query
+
+```sql
+select * from grafbabe_migrations;
+```
 
 ## Configuration
 
@@ -89,7 +109,7 @@ state_location = /var/lib/grafbabe
 # multiple grafbabe processes storing their data in the same state
 # location.
 #
-;database_name = grafbabe
+database_name = grafbabe
 
 
 # Log level
