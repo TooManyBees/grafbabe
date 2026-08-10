@@ -1,6 +1,6 @@
 use rusqlite::{Batch, Connection, Transaction, fallible_iterator::FallibleIterator};
 use std::error::Error;
-use std::{fmt, fs, path::Path};
+use std::{fmt, fs, io::ErrorKind, path::Path};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Migration {
@@ -64,9 +64,28 @@ pub fn auto_migrate<P: AsRef<Path>>(
 ) -> Result<(), Box<dyn Error>> {
     if !is_migrated(&connection)? {
         log::info!("Migrating database");
-        let backup_path = database_path.as_ref().with_extension("db3.bak");
+        let database_path = database_path.as_ref();
+        let backup_path = database_path.with_extension("bak.db3");
         log::info!("Copying backup to {}", backup_path.to_string_lossy());
         fs::copy(&database_path, &backup_path)?;
+        // The other database files might not exist yet, but should be
+        // backed-up.
+        if let Err(e) = fs::copy(
+            &database_path.with_extension("db3-shm"),
+            database_path.with_extension("bak.db3-shm"),
+        ) {
+            if e.kind() == ErrorKind::NotFound {
+                return Err(e.into());
+            }
+        }
+        if let Err(e) = fs::copy(
+            &database_path.with_extension("db3-wal"),
+            database_path.with_extension("bak.db3-wal"),
+        ) {
+            if e.kind() == ErrorKind::NotFound {
+                return Err(e.into());
+            }
+        }
         migrate(connection)?;
     }
 
