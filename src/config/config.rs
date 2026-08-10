@@ -64,10 +64,11 @@ impl Config {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum Command {
     #[default]
     Serve,
+    ServeLive,
     #[cfg(feature = "mock_data")]
     ServeMockData(String),
     #[cfg(feature = "mock_data")]
@@ -112,14 +113,14 @@ impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ConfigError::MissingArgument(s) => {
-                write!(f, "the flag {s} is missing its following argument")
+                write!(f, "the flag {s:?} is missing its following argument")
             }
             #[cfg(feature = "mock_data")]
             ConfigError::MissingCommandArgument(s) => {
-                write!(f, "the command {s} is missing its following argument")
+                write!(f, "the command {s:?} is missing its following argument")
             }
-            ConfigError::UnrecognizedArgument(s) => write!(f, "unrecognized argument {s}"),
-            ConfigError::UnrecognizedCommand(s) => write!(f, "unrecognized command {s}"),
+            ConfigError::UnrecognizedArgument(s) => write!(f, "unrecognized argument {s:?}"),
+            ConfigError::UnrecognizedCommand(s) => write!(f, "unrecognized command {s:?}"),
             ConfigError::ParseError(p, e) => {
                 write!(f, "error parsing config file {}: {e}", p.to_string_lossy())
             }

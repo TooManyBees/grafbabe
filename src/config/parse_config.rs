@@ -5,7 +5,7 @@ use std::path::PathBuf;
 pub fn parse_config() -> Result<Config, ConfigError> {
     let mut config_file: Option<PathBuf> = None;
 
-    let mut args = std::env::args().skip(1);
+    let mut args = std::env::args().skip(1).peekable();
 
     let mut command = Command::Serve;
 
@@ -49,7 +49,13 @@ pub fn parse_config() -> Result<Config, ConfigError> {
                         return Err(ConfigError::MissingCommandArgument(command_str.to_string()));
                     }
                 },
-                "serve" => command = Command::Serve,
+                "serve" => match args.next_if(|next| !next.starts_with("-")) {
+                    Some(other) if other == "live" => command = Command::ServeLive,
+                    Some(other) => {
+                        return Err(ConfigError::UnrecognizedCommand(format!("serve {other}")));
+                    }
+                    None => command = Command::Serve,
+                },
                 _ => return Err(ConfigError::UnrecognizedCommand(arg)),
             },
             _ => return Err(ConfigError::UnrecognizedArgument(arg)),
@@ -60,6 +66,12 @@ pub fn parse_config() -> Result<Config, ConfigError> {
         parse_ini(&path)
             .map_err(|e| ConfigError::ParseError(path, e))
             .map(|mut config| {
+                // Remove config file's frontend_dir in release, unless serving live
+                if cfg!(not(debug_assertions))
+                    && command != Command::ServeLive
+                {
+                    config.frontend_dir = None;
+                }
                 config.command = command;
                 config
             })

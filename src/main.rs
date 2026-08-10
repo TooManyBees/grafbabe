@@ -99,7 +99,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Command::Serve => {
+        Command::Serve | Command::ServeLive => {
             if let Err(e) = serve_http(config, connection) {
                 log::error!("Aborted main loop: {e}");
                 std::process::exit(1);

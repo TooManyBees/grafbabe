@@ -4,14 +4,18 @@ use std::borrow::Cow;
 use std::io::Error;
 
 pub fn file_contents(
-    #[allow(unused)] root: Option<&str>,
+    root: Option<&str>,
     path: &str,
     if_none_match: Option<&str>,
 ) -> Result<FileResult, Error> {
     #[cfg(debug_assertions)]
     let result = read_file(root, path);
     #[cfg(not(debug_assertions))]
-    let result = read_included(path);
+    let result = if root.is_some() {
+        read_file(root, path)
+    } else {
+        read_included(path)
+    };
 
     if let Some(if_none_match) = if_none_match {
         if let Ok(FileResult::Found { ref etag, .. }) = result {
@@ -33,7 +37,6 @@ pub enum FileResult {
     },
 }
 
-#[cfg(debug_assertions)]
 fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
     use std::fs::File;
     use std::io::{ErrorKind, Read};
