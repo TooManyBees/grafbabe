@@ -104,12 +104,18 @@ fn is_migrated(connection: &Connection) -> rusqlite::Result<bool> {
         None => log::debug!("no migrations run yet"),
     }
 
-    match (last_migration_name, MIGRATIONS.iter().last()) {
-        (Some(name), Some(migration)) => Ok(name == migration.name),
-        (Some(name), None) => {
-            log::warn!("database is migrated to unknown migration: {}", name);
-            Ok(true)
+    if let Some(last_migration_name) = last_migration_name.as_deref() {
+        if !MIGRATIONS.iter().any(|m| m.name == last_migration_name) {
+            log::warn!(
+                "database is migrated to unknown migration: {}",
+                last_migration_name
+            );
+            return Ok(true);
         }
+    }
+
+    match (last_migration_name, MIGRATIONS.iter().last().unwrap()) {
+        (Some(name), migration) => Ok(name == migration.name),
         (None, _) => Ok(false),
     }
 }
@@ -236,7 +242,7 @@ fn find_line_col(s: &str, index: usize) -> (usize, usize) {
 
 #[cfg(test)]
 mod test {
-    use super::{MIGRATIONS, last_migration, migrate, migrations_after};
+    use super::{MIGRATIONS, is_migrated, last_migration, migrate, migrations_after};
     use rusqlite::Connection;
 
     #[test]
@@ -276,6 +282,44 @@ mod test {
         let last_migration_name = last_migration(&db);
 
         assert_eq!(Ok(Some(expected_name.to_string())), last_migration_name);
+    }
+
+    #[test]
+    fn is_migrated_detects_empty_database() {
+        let db = in_memory_db();
+        assert!(!is_migrated(&db).unwrap());
+    }
+
+    #[test]
+    fn is_migrated_detects_missing_migrations() {
+        let mut db = in_memory_db();
+        let mut transaction = db.transaction().unwrap();
+        MIGRATIONS[0].execute(&mut transaction).unwrap();
+        transaction.commit().unwrap();
+        assert!(!is_migrated(&db).unwrap());
+    }
+
+    #[test]
+    fn is_migrated_detects_up_to_date_database() {
+        let mut db = in_memory_db();
+        let _ = migrate(&mut db);
+        assert!(is_migrated(&db).unwrap());
+    }
+
+    #[test]
+    fn is_migrated_detects_unknown_migrations() {
+        let mut db = in_memory_db();
+        let mut transaction = db.transaction().unwrap();
+        MIGRATIONS[0].execute(&mut transaction).unwrap();
+        transaction.commit().unwrap();
+
+        db.execute(
+            "INSERT INTO grafbabe_migrations (name)
+            VALUES ('000_init'), ('000_unit_test_data'), ('nonexistant');",
+            (),
+        )
+        .unwrap();
+        assert!(is_migrated(&db).unwrap());
     }
 
     #[test]
