@@ -2,6 +2,7 @@ use rusqlite::{Batch, Connection, Transaction, fallible_iterator::FallibleIterat
 use std::error::Error;
 use std::{fmt, fs, path::Path};
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Migration {
     name: &'static str,
     queries: &'static str,
@@ -45,22 +46,7 @@ pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
     }
 
     let last_migration_name = last_migration(connection)?;
-
-    // Skip all migrations up until the last migration, then skip that one too
-    let migrations_to_run = MIGRATIONS
-        .iter()
-        .skip_while(|m| {
-            last_migration_name
-                .as_ref()
-                .map(|name| name != m.name)
-                .unwrap_or(false)
-        })
-        .skip_while(|m| {
-            last_migration_name
-                .as_ref()
-                .map(|name| name == m.name)
-                .unwrap_or(false)
-        });
+    let migrations_to_run = migrations_after(last_migration_name);
 
     let transaction = connection.transaction()?;
     for migration in migrations_to_run {
@@ -134,6 +120,20 @@ fn last_migration(connection: &Connection) -> rusqlite::Result<Option<String>> {
         Ok(name) => Ok(Some(name)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
+    }
+}
+
+fn migrations_after<N: AsRef<str>>(name: Option<N>) -> &'static [Migration] {
+    let name = match name {
+        None => return MIGRATIONS,
+        Some(n) => n,
+    };
+
+    let idx = MIGRATIONS.iter().position(|m| m.name == name.as_ref());
+
+    match idx {
+        Some(i) => &MIGRATIONS[i + 1..],
+        None => &[],
     }
 }
 
@@ -217,7 +217,7 @@ fn find_line_col(s: &str, index: usize) -> (usize, usize) {
 
 #[cfg(test)]
 mod test {
-    use super::{MIGRATIONS, last_migration, migrate};
+    use super::{MIGRATIONS, last_migration, migrate, migrations_after};
     use rusqlite::Connection;
 
     #[test]
@@ -257,6 +257,11 @@ mod test {
         let last_migration_name = last_migration(&db);
 
         assert_eq!(Ok(Some(expected_name.to_string())), last_migration_name);
+    }
+
+    #[test]
+    fn migrations_after_skips_migrations_until_match() {
+        assert_eq!(&MIGRATIONS[1..], migrations_after(Some("000_init")))
     }
 
     #[test]
