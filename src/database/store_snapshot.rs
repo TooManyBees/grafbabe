@@ -96,27 +96,27 @@ pub fn metric_type(t: MetricType) -> Result<i64, UnsupportedMetricType> {
     }
 }
 
-pub fn metric_value(v: &MetricValue) -> Result<i64, UnsupportedMetricType> {
+pub fn metric_value(v: &MetricValue) -> Result<f64, UnsupportedMetricType> {
     match v {
         MetricValue::Counter(Counter {
             value: UnsignedNumber::Uint(n),
             ..
-        }) => Ok(*n as i64),
+        }) => Ok(*n as f64),
         MetricValue::Counter(Counter {
             value: UnsignedNumber::Float(f),
             ..
-        }) => Ok(*f as i64),
-        MetricValue::Gauge(Number::Int(n)) => Ok(*n),
-        MetricValue::Gauge(Number::Float(f)) => Ok(*f as i64),
-        MetricValue::Untyped(Number::Int(n)) => Ok(*n),
-        MetricValue::Untyped(Number::Float(f)) => Ok(*f as i64),
+        }) => Ok(*f),
+        MetricValue::Gauge(Number::Int(n)) => Ok(*n as f64),
+        MetricValue::Gauge(Number::Float(f)) => Ok(*f),
+        MetricValue::Untyped(Number::Int(n)) => Ok(*n as f64),
+        MetricValue::Untyped(Number::Float(f)) => Ok(*f),
         MetricValue::Summary(_) => Err(UnsupportedMetricType::Summary),
         MetricValue::Histogram(_) => Err(UnsupportedMetricType::Histogram),
         MetricValue::GaugeHistogram(_) => Err(UnsupportedMetricType::GaugeHistogram),
         MetricValue::NativeHistogram(_) => Err(UnsupportedMetricType::NativeHistogram),
         MetricValue::HybridHistogram { .. } => Err(UnsupportedMetricType::HybridHistogram),
         MetricValue::StateSet(_) => Err(UnsupportedMetricType::StateSet),
-        MetricValue::Info(_) => Ok(1i64),
+        MetricValue::Info(_) => Ok(1f64),
     }
 }
 

@@ -71,7 +71,7 @@ pub fn get_metrics(
         while let Some(row) = rows.next()? {
             let metric_id: IndexType = row.get(0)?;
             let label_id: Option<IndexType> = row.get(1)?;
-            let value: Option<i64> = row.get(2)?;
+            let value: Option<f64> = row.get(2)?;
 
             let (metric_name, label_name) = metric_ids[&(metric_id, label_id)].clone();
 

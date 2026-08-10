@@ -16,7 +16,7 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
 
     let fraction = window
         .duration()
-        .div_duration_f32(Duration::from_hours(24 * 30));
+        .div_duration_f64(Duration::from_hours(24 * 30));
 
     let series = mock_data
         .iter()
@@ -30,10 +30,10 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
                     }
                 };
 
-                let step_amount = (fraction * value as f32) / num_samples as f32;
+                let step_amount = (fraction * value) / num_samples as f64;
 
-                let values = (0..num_samples as i64)
-                    .map(|n| (value as f32 - step_amount * (n as f32)) as i64)
+                let values = (0..num_samples as u64)
+                    .map(|n| value - step_amount * (n as f64))
                     .map(Some)
                     .collect();
 

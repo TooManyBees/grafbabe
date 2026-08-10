@@ -38,6 +38,7 @@ pub static MIGRATIONS: &'static [Migration] = &[
     include_migration!("000_init"),
     #[cfg(test)]
     include_migration!("000_unit_test_data"),
+    include_migration!("001_change_values_to_real"),
 ];
 
 pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {

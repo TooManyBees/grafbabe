@@ -6,7 +6,7 @@ pub struct Series {
     pub name: String,
     pub label: Option<String>,
     // Optional to accomodate for the fact that a metric might not exist for every time slice
-    pub values: Vec<Option<i64>>,
+    pub values: Vec<Option<f64>>,
 }
 
 impl Series {
@@ -18,7 +18,7 @@ impl Series {
         }
     }
 
-    pub fn push(&mut self, value: Option<i64>) {
+    pub fn push(&mut self, value: Option<f64>) {
         self.values.push(value)
     }
 }
