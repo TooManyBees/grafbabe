@@ -1,7 +1,7 @@
 mod get_metrics;
 #[cfg(feature = "mock_data")]
 mod get_mock_data;
-mod init;
+mod migrations;
 mod prune_old_metrics;
 #[cfg(feature = "mock_data")]
 mod seed_database;
@@ -10,7 +10,9 @@ mod store_snapshot;
 pub use get_metrics::get_metrics;
 #[cfg(feature = "mock_data")]
 pub use get_mock_data::get_mock_data;
-use init::init_database;
+pub use migrations::auto_migrate;
+use migrations::migrate;
+pub use migrations::MIGRATIONS;
 pub use prune_old_metrics::prune_old_metrics;
 #[cfg(feature = "mock_data")]
 pub use seed_database::seed_database;
@@ -21,6 +23,7 @@ use rusqlite::{
     Connection, ErrorCode, OpenFlags,
     types::{ToSql, ToSqlOutput, Value},
 };
+use std::error::Error;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -43,8 +46,8 @@ impl ToSql for SqlMetricType {
     }
 }
 
-pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
-    let connection = open_or_create(&path)?;
+pub fn get_connection<P: AsRef<Path>>(path: P) -> Result<Connection, Box<dyn Error>> {
+    let mut connection = open_or_create(&path)?;
     connection
         .as_ref()
         .pragma_update(None, "journal_mode", "WAL")?;
@@ -52,9 +55,9 @@ pub fn get_connection<P: AsRef<Path>>(path: P) -> rusqlite::Result<Connection> {
         .as_ref()
         .pragma_update(None, "foreign_keys", "ON")?;
     rusqlite::vtab::array::load_module(connection.as_ref())?;
-    if let OpenResult::New(ref c) = connection {
+    if let OpenResult::New(c) = &mut connection {
         log::debug!("Initializing new database");
-        init_database(c)?;
+        migrate(c)?;
     }
     Ok(connection.unwrap())
 }
