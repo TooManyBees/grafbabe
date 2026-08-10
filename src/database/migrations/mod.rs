@@ -101,8 +101,8 @@ fn is_migrated(connection: &Connection) -> rusqlite::Result<bool> {
 
     match (last_migration_name, MIGRATIONS.iter().last()) {
         (Some(name), Some(migration)) => Ok(name == migration.name),
-        (Some(_name), None) => {
-            // TODO warn about a newer migration than the binary knows about?
+        (Some(name), None) => {
+            log::warn!("database is migrated to unknown migration: {}", name);
             Ok(true)
         }
         (None, _) => Ok(false),
