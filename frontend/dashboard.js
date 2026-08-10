@@ -239,6 +239,11 @@ function createChart(timestamps, metric) {
           display: metric.series.some(s => s.label != null),
         },
       },
+      elements: {
+        point: {
+          pointRadius: 1,
+        },
+      },
       scales: {
         x: {
           parser: false,
