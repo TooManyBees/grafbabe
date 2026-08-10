@@ -4,7 +4,7 @@ use std::{fmt, fs, io::ErrorKind, path::Path};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Migration {
-    name: &'static str,
+    pub name: &'static str,
     queries: &'static str,
 }
 
@@ -33,7 +33,7 @@ macro_rules! include_migration {
     };
 }
 
-static MIGRATIONS: &'static [Migration] = &[
+pub static MIGRATIONS: &'static [Migration] = &[
     // Migrations refer to SQL files in this directory
     include_migration!("000_init"),
     #[cfg(test)]

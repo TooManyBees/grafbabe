@@ -17,6 +17,11 @@ pub fn version_more() {
         }
     }
 
+    println!("Known database migrations:");
+    for m in crate::database::MIGRATIONS {
+        println!("\t{}", m.name);
+    }
+
     #[cfg(not(debug_assertions))]
     {
         println!("Included frontend files:");

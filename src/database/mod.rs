@@ -12,6 +12,7 @@ pub use get_metrics::get_metrics;
 pub use get_mock_data::get_mock_data;
 pub use migrations::auto_migrate;
 use migrations::migrate;
+pub use migrations::MIGRATIONS;
 pub use prune_old_metrics::prune_old_metrics;
 #[cfg(feature = "mock_data")]
 pub use seed_database::seed_database;
