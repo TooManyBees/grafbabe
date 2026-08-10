@@ -19,7 +19,7 @@ httparse = "1.10.1"
 log = { version = "0.4.33", features = ["kv"] }
 mio = { version = "1.2.0", features = ["net", "os-poll"] }
 prometheus-scraper = { version = "0.1.2", default-features = false }
-rusqlite = { version = "0.40.1", default-features = false, features = ["array", "vtab"] }
+rusqlite = { version = "0.40.1", default-features = false, features = ["array", "vtab", "modern_sqlite"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 systemd-journal-logger = { version = "2.2.2", optional = true }
