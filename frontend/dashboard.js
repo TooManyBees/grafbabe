@@ -185,7 +185,7 @@ async function getMetrics(numSamples = 240, sampleWindow = "1h") {
     accum.get(series.name).push(series);
     return accum;
   }, new Map());
-  const grouped = Array.from(accumulated.entries().map(([name, series]) => ({ name, series })));
+  const grouped = Array.from(accumulated.entries()).map(([name, series]) => ({ name, series }));
 
   return {
     timestamps: metrics.timestamps,
