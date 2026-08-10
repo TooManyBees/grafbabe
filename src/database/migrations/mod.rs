@@ -226,6 +226,14 @@ mod test {
     }
 
     #[test]
+    fn last_migration_returns_none_on_legacy_db() {
+        let db = in_memory_db();
+        pre_migration_schema(&db).expect("couldn't initialize db as pre-migration version did");
+        let last_migration_name = last_migration(&db);
+        assert_eq!(Ok(None), last_migration_name);
+    }
+
+    #[test]
     fn last_migration_returns_name_of_last_migration() {
         let db = in_memory_db();
         let expected_name = "5678_cool_migration";
@@ -254,17 +262,23 @@ mod test {
         let mut db = in_memory_db();
         migrate(&mut db).expect("migrations failed");
 
-        let inserted_migration_names = {
-            let mut statement = db
-                .prepare("SELECT name FROM grafbabe_migrations ORDER BY id ASC")
-                .expect("couldn't prepare statement");
-            let mut rows = statement.query([]).expect("couldn't query db");
-            let mut names: Vec<String> = Vec::with_capacity(MIGRATIONS.len());
-            while let Some(row) = rows.next().expect("couldn't read next row") {
-                names.push(row.get(0).expect("couldn't scan name from row"));
-            }
-            names
-        };
+        let inserted_migration_names =
+            read_migration_names(&db).expect("couldn't read migration names");
+
+        let all_migration_names: Vec<String> =
+            MIGRATIONS.iter().map(|m| m.name.to_string()).collect();
+
+        assert_eq!(all_migration_names, inserted_migration_names);
+    }
+
+    #[test]
+    fn all_the_migrations_work_on_legacy_db() {
+        let mut db = in_memory_db();
+        pre_migration_schema(&db).expect("couldn't initialize db as pre-migration version did");
+        migrate(&mut db).expect("migrations failed");
+
+        let inserted_migration_names =
+            read_migration_names(&db).expect("couldn't read migration names");
 
         let all_migration_names: Vec<String> =
             MIGRATIONS.iter().map(|m| m.name.to_string()).collect();
@@ -281,5 +295,72 @@ mod test {
         db.pragma_update(None, "foreign_keys", "ON")?;
         rusqlite::vtab::array::load_module(&db)?;
         Ok(db)
+    }
+
+    fn read_migration_names(db: &Connection) -> rusqlite::Result<Vec<String>> {
+        let mut statement = db.prepare("SELECT name FROM grafbabe_migrations ORDER BY id ASC")?;
+        let mut rows = statement.query([])?;
+        let mut names: Vec<String> = Vec::with_capacity(MIGRATIONS.len());
+        while let Some(row) = rows.next()? {
+            names.push(row.get(0)?);
+        }
+        Ok(names)
+    }
+
+    fn pre_migration_schema(db: &Connection) -> rusqlite::Result<()> {
+        // Previously the contents of the database/init.rs module
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS metrics (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                kind INTEGER NOT NULL DEFAULT 0,
+                help TEXT
+            ) STRICT;",
+            (),
+        )?;
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS metrics_by_name ON metrics(name);",
+            (),
+        )?;
+
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS labels (
+                id INTEGER PRIMARY KEY,
+                label TEXT NOT NULL
+            ) STRICT;",
+            (),
+        )?;
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS labels_by_label ON labels(label);",
+            (),
+        )?;
+
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY,
+                timestamp INTEGER NOT NULL
+            ) STRICT;",
+            (),
+        )?;
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS events_by_timestamp ON events(timestamp);",
+            (),
+        )?;
+
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS metric_values (
+                metric_id INTEGER NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
+                label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE,
+                event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                value INTEGER NOT NULL
+            ) STRICT;",
+            (),
+        )?;
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS metric_values_by_event_id ON metric_values(event_id);",
+            (),
+        )?;
+
+        Ok(())
     }
 }

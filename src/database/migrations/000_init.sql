@@ -1,34 +1,34 @@
-CREATE TABLE metrics (
+CREATE TABLE IF NOT EXISTS metrics (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     kind INTEGER NOT NULL DEFAULT 0,
     help TEXT
 ) STRICT;
 
-CREATE UNIQUE INDEX metrics_by_name ON metrics(name);
+CREATE UNIQUE INDEX IF NOT EXISTS metrics_by_name ON metrics(name);
 
-CREATE TABLE labels (
+CREATE TABLE IF NOT EXISTS labels (
     id INTEGER PRIMARY KEY,
     label TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX labels_by_label ON labels(label);
+CREATE UNIQUE INDEX IF NOT EXISTS labels_by_label ON labels(label);
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY,
     timestamp INTEGER NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX events_by_timestamp ON events(timestamp);
+CREATE UNIQUE INDEX IF NOT EXISTS events_by_timestamp ON events(timestamp);
 
-CREATE TABLE metric_values (
+CREATE TABLE IF NOT EXISTS metric_values (
     metric_id INTEGER NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
     label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE,
     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     value INTEGER NOT NULL
 ) STRICT;
 
-CREATE INDEX metric_values_by_event_id ON metric_values(event_id);
+CREATE INDEX IF NOT EXISTS metric_values_by_event_id ON metric_values(event_id);
 
 CREATE TABLE grafbabe_migrations (
     id INTEGER PRIMARY KEY,
