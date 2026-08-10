@@ -49,7 +49,7 @@ jobs:
           ${{ matrix.os.compress-command }} "grafbabe.${{ matrix.os.target }}.${{ matrix.os.asset-extension }}" ${{ matrix.os.binary-name }}
       - name: Upload asset to release
         if: github.event.release
-        uses: shogo82148/actions-upload-release-asset@8dbaa4469aa7256e70624d72f2567fac8f5341b3
+        uses: shogo82148/actions-upload-release-asset@d0cb37bb764791e72e64e643cd7056f74f1e77d7
         with:
           asset_path: target/release/*.${{ matrix.os.asset-extension }}
           asset_content_type: application/octet-stream
