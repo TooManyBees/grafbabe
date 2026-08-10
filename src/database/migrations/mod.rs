@@ -35,6 +35,8 @@ macro_rules! include_migration {
 static MIGRATIONS: &'static [Migration] = &[
     // Migrations refer to SQL files in this directory
     include_migration!("000_init"),
+    #[cfg(test)]
+    include_migration!("000_unit_test_data"),
 ];
 
 pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
