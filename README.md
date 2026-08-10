@@ -30,9 +30,15 @@ Consider a systemd unit file, or whatever task manager nonsense your server need
 
 ## Usage
 
-`grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
+`grafbabe` or `grafbabe serve` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`.
 
-`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options.
+`grafbabe -v` shows the version.
+
+`gravbabe -vv` shows more detailed version, including how it was compiled.
+
+`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options. This option can be applied to all commands.
+
+`grafbabe serve live` runs the server while serving frontend assets from the filesystem. (In development, this is the default behavior, and this command is identical to `grafbabe serve`.)
 
 Newer versions may try to upgrade your database in place, but they will back up the existing database before attempting to do so. `grafbabe -vv` will list the migrations known to it, which you can compare to the query
 
@@ -71,7 +77,8 @@ prometheus_addr = http://localhost/metrics
 #
 # If set, frontend assets will be served from this directory.
 # In dev, the default is the "frontend" directory (included in
-# the codebase). In release, this setting is ignored.
+# the codebase). In release, this setting is ignored unless
+# grafbabe is started with the command `serve live`.
 #
 frontend_dir = frontend
 
