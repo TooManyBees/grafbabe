@@ -32,15 +32,17 @@ Consider a systemd unit file, or whatever task manager nonsense your server need
 
 `grafbabe` or `grafbabe serve` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`.
 
-`grafbabe -v` shows the version.
+The option `-c /path/to/config.ini` reads settings from the file `/path/to/config.ini`. See [Configuration](#configuration) below for valid settings.
 
-`gravbabe -vv` shows more detailed version, including how it was compiled.
+`grafbabe serve live` runs the server while serving frontend assets from the filesystem. (This is only useful when compiled for release with `--features serve_live`. In dev, this is identical to `grafbabe serve`.)
 
-`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options. This option can be applied to all commands.
+The option `-h` shows help.
 
-`grafbabe serve live` runs the server while serving frontend assets from the filesystem. (In development, this is the default behavior, and this command is identical to `grafbabe serve`.)
+The option `-v` shows the version.
 
-Newer versions may try to upgrade your database in place, but they will back up the existing database before attempting to do so. `grafbabe -vv` will list the migrations known to it, which you can compare to the query
+The option `-vv` shows more detailed version, including how it was compiled.
+
+Newer versions may try to upgrade your database in place, but they will back up the existing database before attempting to do so. `grafbabe -vv` will show the latest database revision, which you can compare to the query
 
 ```sql
 select * from grafbabe_migrations;
@@ -178,7 +180,7 @@ When compiled for dev, grafbabe reads frontend HTML and JavaScript from the `fro
 
 When compiled in release, frontend assets are written into the binary. As in dev, the default is the `frontend` directory. To change this location, compile grafbabe with the env variable `GRAFBABE_FRONTEND` set to a different location.
 
-When compiled in release with `--features serve_live`, the `serve live` command will serve frontend assets from the filesystem, as it does by default in dev. The config file's `frontend_dir` must be set. Only consider using this to test live frontend changes. **I'm not responsible for someone traversing your file tree while this is in use.**
+When compiled in release with `--features serve_live`, the `serve live` command will serve frontend assets from the filesystem, as it does by default in dev. The config file's `frontend_dir` must be set. Only consider using this to test frontend changes before compiling them into a binary. **I'm not responsible for someone traversing your file tree while this is in use.**
 
 Some notes on compiled frontend assets:
 
