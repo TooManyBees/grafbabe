@@ -23,10 +23,16 @@ pub fn usage() {
         );
 
     eprint!("Usage:\t{name} [-chvv]");
-    if cfg!(feature = "mock_data") {
-        eprint!(" [ serve | mock <path> | seed <path> ]");
+    if cfg!(any(serve_live, feature = "mock_data")) {
+        eprint!(" [ serve");
+        if cfg!(serve_live) {
+            eprint!(" | serve live");
+        }
+        if cfg!(feature = "mock_data") {
+            eprint!(" | mock <path> | seed <path>");
+        }
+        eprintln!(" ]");
     }
-    eprintln!("");
 
     eprintln!(
         "\nFlags:
@@ -36,16 +42,33 @@ pub fn usage() {
 \t-vv or --version (print more detailed version)\n"
     );
 
-    if cfg!(feature = "mock_data") {
-        eprintln!(
+    if cfg!(any(serve_live, feature = "mock_data")) {
+        eprint!(
             "Commands:
 \tserve (runs the program as normal, serving HTTP requests and polling
-\t\tthe prometheus endpoint in the background; this is the default)
+\t\tthe prometheus endpoint in the background; this is the default)"
+        );
+        if cfg!(serve_live) {
+            eprint!(
+                "
+\tserve live (like serve, but reads files from the config file's
+\t\t`frontend_dir` setting"
+            );
+            if cfg!(not(serve_live_in_release)) {
+                eprint!("; in debug this is identical to `serve`");
+            }
+            eprint!(")");
+        }
+        if cfg!(feature = "mock_data") {
+            eprint!(
+                "
 \tmock <path> (like serve, but reads the file at <path> and uses it as
 \t\tmock data; the file must be in prometheus format; the program will
 \t\tnot poll the prometheus endpoint in the background)
 \tseed <path> (writes a single snapshot to the database, using
-\t\tdata read from <path>; the file must be in prometheus format)\n"
-        );
+\t\tdata read from <path>; the file must be in prometheus format)"
+            )
+        }
+        eprintln!("\n");
     }
 }
