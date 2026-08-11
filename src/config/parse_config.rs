@@ -66,10 +66,8 @@ pub fn parse_config() -> Result<Config, ConfigError> {
         parse_ini(&path)
             .map_err(|e| ConfigError::ParseError(path, e))
             .map(|mut config| {
-                // Remove config file's frontend_dir in release, unless serving live
-                if cfg!(not(debug_assertions))
-                    && command != Command::ServeLive
-                {
+                // Remove config file's frontend_dir, unless serving live
+                if cfg!(serve_live_in_release) && command != Command::ServeLive {
                     config.frontend_dir = None;
                 }
                 config.command = command;

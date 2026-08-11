@@ -6,5 +6,5 @@ mod http_handler;
 pub use async_loop::serve_http;
 #[cfg(feature = "mock_data")]
 pub use async_loop::serve_mock_http;
-#[cfg(not(debug_assertions))]
+#[cfg(serve_included)]
 pub use file_contents::{INCLUDED_FILES, INCLUDED_FILES_ROOT};

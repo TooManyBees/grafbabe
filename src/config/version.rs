@@ -19,7 +19,7 @@ pub fn version_more() {
 
     println!("Database schema:\n\t{}", crate::database::SCHEMA.name);
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(serve_included)]
     {
         println!("Included frontend files:");
         let root = crate::serve_http::INCLUDED_FILES_ROOT;
