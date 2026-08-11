@@ -178,6 +178,8 @@ When compiled for dev, grafbabe reads frontend HTML and JavaScript from the `fro
 
 When compiled in release, frontend assets are written into the binary. As in dev, the default is the `frontend` directory. To change this location, compile grafbabe with the env variable `GRAFBABE_FRONTEND` set to a different location.
 
+When compiled in release with `--features serve_live`, the `serve live` command will serve frontend assets from the filesystem, as it does by default in dev. The config file's `frontend_dir` must be set. Only consider using this to test live frontend changes. **I'm not responsible for someone traversing your file tree while this is in use.**
+
 Some notes on compiled frontend assets:
 
 * The compiler will include files inside `GRAFBABE_FRONTEND`, but will not descend deeper into directories to find more.
