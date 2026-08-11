@@ -152,7 +152,7 @@ Compiling with `--features mock_data` enables the following commands, which lets
 
 ## Optional features
 
-* **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
+* **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary. Do not disable this feature unless your system sqlite3 is version **3.53.0** at minimum (sorry, Debian users).
 * **color** (enabled by default) supports color ANSI output when log format is set to "pretty".
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
 * **systemd_journal** enables the log target "systemd-journal"
