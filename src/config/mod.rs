@@ -5,13 +5,22 @@ mod parse_ini;
 mod time;
 mod version;
 
+use std::path::PathBuf;
+
 pub use config::*;
 pub use logger::init_logger;
 pub use parse_config::parse_config;
 pub use version::{version, version_more};
 
 pub fn usage() {
-    let name = std::env::args().next().unwrap_or(version::NAME.to_string());
+    let name = std::env::args_os()
+        .next()
+        .map(PathBuf::from)
+        .and_then(|p| Some(p.file_name()?.to_os_string()))
+        .map_or_else(
+            || version::NAME.to_string(),
+            |osstr| osstr.to_string_lossy().to_string(),
+        );
 
     eprint!("Usage:\t{name} [-chvv]");
     if cfg!(feature = "mock_data") {

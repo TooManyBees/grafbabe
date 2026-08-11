@@ -107,9 +107,13 @@ fn main() {
         }
         Command::ServeLive => {
             if cfg!(not(serve_live)) {
-                log::warn!("The command \"serve live\" has no effect because grafbabe was not compiled with `--features serve_live`");
+                log::warn!(
+                    "The command \"serve live\" has no effect because grafbabe was not compiled with `--features serve_live`"
+                );
             } else if config.frontend_dir.is_none() {
-                log::warn!("The command \"serve live\" has no effect becuase the config setting \"frontend_dir\" is missing")
+                log::warn!(
+                    "The command \"serve live\" has no effect becuase the config setting \"frontend_dir\" is missing"
+                )
             }
             if let Err(e) = serve_http(config, connection) {
                 log::error!("Aborted main loop: {e}");

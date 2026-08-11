@@ -161,8 +161,8 @@ Compiling with `--features mock_data` enables the following commands, which lets
 
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
 * **color** (enabled by default) supports color ANSI output when log format is set to "pretty".
-* **serve_live** (enabled by default *only in dev*) as described in [Usage](#usage), enables the command `grafbabe serve live`.
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
+* **serve_live** (enabled by default) as described in [Usage](#usage), enables the command `grafbabe serve live`.
 * **systemd_journal** enables the log target "systemd-journal"
 * **tls** allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
 
