@@ -1,7 +1,5 @@
 use crate::config::Config;
-use crate::database::get_metrics;
-#[cfg(feature = "mock_data")]
-use crate::database::get_mock_data;
+use crate::database;
 use crate::models::{Metrics, Window};
 #[cfg(feature = "mock_data")]
 use crate::parse_prometheus;
@@ -66,11 +64,13 @@ pub fn serve_http(
         .build()
         .into();
 
+    database::prune_unused_metrics(&connection)?;
+
     let get_metrics_fn = |connection: &mut Connection,
                           num_samples: usize,
                           window: Window|
      -> Result<Metrics, rusqlite::Error> {
-        get_metrics(connection, num_samples, window)
+        database::get_metrics(connection, num_samples, window)
     };
 
     if let Some(frontend_dir) = config.frontend_dir.as_deref() {
@@ -156,7 +156,7 @@ pub fn serve_mock_http(
                           num_samples: usize,
                           window: Window|
      -> Result<Metrics, rusqlite::Error> {
-        Ok(get_mock_data(&metrics, num_samples, window))
+        Ok(database::get_mock_data(&metrics, num_samples, window))
     };
 
     loop {
