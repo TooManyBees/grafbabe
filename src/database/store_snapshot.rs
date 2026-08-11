@@ -1,5 +1,5 @@
 use crate::database::{SqlMetricType, now_ms};
-use prometheus_scraper::borrowed::{Counter, LabelPair, MetricFamily, MetricValue};
+use prometheus_scraper::borrowed::{Counter, Info, LabelPair, MetricFamily, MetricValue};
 use prometheus_scraper::owned::{Number, UnsignedNumber};
 use rusqlite::{Connection, types::Value};
 use std::borrow::Cow;
@@ -74,7 +74,6 @@ pub enum UnsupportedMetricType {
     NativeHistogram,
     HybridHistogram,
     StateSet,
-    Info,
 }
 
 pub fn metric_value(v: &MetricValue) -> Result<i64, UnsupportedMetricType> {
@@ -97,7 +96,7 @@ pub fn metric_value(v: &MetricValue) -> Result<i64, UnsupportedMetricType> {
         MetricValue::NativeHistogram(_) => Err(UnsupportedMetricType::NativeHistogram),
         MetricValue::HybridHistogram { .. } => Err(UnsupportedMetricType::HybridHistogram),
         MetricValue::StateSet(_) => Err(UnsupportedMetricType::StateSet),
-        MetricValue::Info(_) => Err(UnsupportedMetricType::Info),
+        MetricValue::Info(_) => Ok(1i64),
     }
 }
 
@@ -191,7 +190,10 @@ fn get_known_labels<'a>(
             family
                 .metric
                 .iter()
-                .filter_map(|metric| labels_to_db(&metric.label))
+                .filter_map(|metric| match &metric.value {
+                    MetricValue::Info(Info { labels }) => labels_to_db(labels),
+                    _ => labels_to_db(&metric.label),
+                })
         })
         .collect();
     let label_values = Rc::new(
