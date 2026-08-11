@@ -1,4 +1,4 @@
-use crate::database::now_ms;
+use crate::database::{IndexType, now_ms};
 use crate::models::{Metrics, Series, Window};
 use rusqlite::{Connection, types::Value};
 use std::cmp::Ordering;
@@ -33,7 +33,7 @@ pub fn get_metrics(
         ts
     };
 
-    let metric_ids: HashMap<(i64, Option<i64>), (String, Option<String>)> = {
+    let metric_ids: HashMap<(IndexType, Option<IndexType>), (String, Option<String>)> = {
         let mut statement = connection.prepare(
             "SELECT DISTINCT metrics.id AS metric_id, metrics.name AS metric_name, labels.id AS label_id, labels.label AS label
             FROM metric_values
@@ -43,11 +43,12 @@ pub fn get_metrics(
             WHERE events.id IN rarray(?1);"
         )?;
         let mut rows = statement.query([event_ids.clone()])?;
-        let mut metric_ids: HashMap<(i64, Option<i64>), (String, Option<String>)> = HashMap::new();
+        let mut metric_ids: HashMap<(IndexType, Option<IndexType>), (String, Option<String>)> =
+            HashMap::new();
         while let Some(row) = rows.next()? {
-            let metric_id: i64 = row.get(0)?;
+            let metric_id: IndexType = row.get(0)?;
             let metric_name: String = row.get(1)?;
-            let label_id: Option<i64> = row.get(2)?;
+            let label_id: Option<IndexType> = row.get(2)?;
             let label_name: Option<String> = row.get(3)?;
             metric_ids.insert((metric_id, label_id), (metric_name, label_name));
         }
@@ -68,8 +69,8 @@ pub fn get_metrics(
         let mut events: HashMap<(String, Option<String>), Series> = HashMap::new();
 
         while let Some(row) = rows.next()? {
-            let metric_id: i64 = row.get(0)?;
-            let label_id: Option<i64> = row.get(1)?;
+            let metric_id: IndexType = row.get(0)?;
+            let label_id: Option<IndexType> = row.get(1)?;
             let value: Option<i64> = row.get(2)?;
 
             let (metric_name, label_name) = metric_ids[&(metric_id, label_id)].clone();
@@ -97,8 +98,8 @@ fn get_event_indices_for_window(
     connection: &Connection,
     num_samples: usize,
     window: Window,
-) -> rusqlite::Result<Vec<i64>> {
-    let (max_id, max_timestamp): (i64, i64) =
+) -> rusqlite::Result<Vec<IndexType>> {
+    let (max_id, max_timestamp): (IndexType, i64) =
         match connection.query_one("SELECT MAX(id), timestamp FROM events;", (), |row| {
             let id = row.get(0)?;
             let ts = row.get(1)?;
@@ -119,7 +120,7 @@ fn get_event_indices_for_window(
         log::trace!("search window is newer than newest event, returning empty set");
         return Ok(vec![]);
     }
-    let min_id: i64 = connection.query_one(
+    let min_id: IndexType = connection.query_one(
         "SELECT MIN(id) FROM events WHERE timestamp > ?",
         [min_timestamp],
         |row| row.get(0),
@@ -136,7 +137,7 @@ fn get_event_indices_for_window(
 
     // If there are as many or fewer samples than desired in the window,
     // just return that exact range.
-    if max_id - min_id + 1 <= num_samples as i64 {
+    if max_id - min_id + 1 <= num_samples as IndexType {
         log::trace!(
             "fewer or equal events than desired samples, returning all in {}..={}",
             min_id,
@@ -150,14 +151,14 @@ fn get_event_indices_for_window(
     Ok(ids)
 }
 
-fn tween_ids(min_id: i64, max_id: i64, num_samples: usize) -> Vec<i64> {
+fn tween_ids(min_id: IndexType, max_id: IndexType, num_samples: usize) -> Vec<IndexType> {
     let sample_rate = (max_id - min_id) as f32 / (num_samples - 1) as f32;
     let mut ids = Vec::with_capacity(num_samples);
 
     ids.push(min_id);
     for offset in (0..num_samples - 1).rev() {
         let id_f = max_id as f32 - offset as f32 * sample_rate;
-        let id = id_f.round() as i64;
+        let id = id_f.round() as IndexType;
         if id <= 0 {
             break;
         }

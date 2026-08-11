@@ -1,4 +1,4 @@
-use crate::database::now_ms;
+use crate::database::{IndexType, now_ms};
 use prometheus_scraper::borrowed::{Counter, Info, LabelPair, MetricFamily, MetricValue};
 use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{Connection, types::Value};
@@ -17,7 +17,7 @@ pub fn store_snapshot(
 
     let transaction = connection.transaction()?;
 
-    let event_id: i64 = {
+    let event_id: IndexType = {
         let mut insert_event_statement = transaction.prepare(
             "INSERT INTO events (timestamp)
             VALUES (?)
@@ -123,7 +123,7 @@ pub fn metric_value(v: &MetricValue) -> Result<i64, UnsupportedMetricType> {
 fn get_known_metrics<'a>(
     connection: &mut Connection,
     metrics: &[MetricFamily<'a>],
-) -> rusqlite::Result<HashMap<Cow<'a, str>, i64>> {
+) -> rusqlite::Result<HashMap<Cow<'a, str>, IndexType>> {
     let mut known_metrics = {
         let metric_names: Vec<_> = metrics
             .iter()
@@ -138,7 +138,7 @@ fn get_known_metrics<'a>(
         let mut known_metrics = HashMap::with_capacity(metrics.len());
         while let Some(row) = rows.next()? {
             let name: String = row.get(0)?;
-            let index: i64 = row.get(1)?;
+            let index: IndexType = row.get(1)?;
             known_metrics.insert(Cow::from(name), index);
         }
         known_metrics
@@ -195,7 +195,7 @@ pub fn labels_to_db(labels: &[LabelPair]) -> Option<String> {
 fn get_known_labels<'a>(
     connection: &mut Connection,
     metrics: &[MetricFamily<'a>],
-) -> rusqlite::Result<HashMap<String, i64>> {
+) -> rusqlite::Result<HashMap<String, IndexType>> {
     // let mut label_identifiers: HashMap<&'a [LabelPair<'a>], String> = HashMap::new();
     // for family in metrics.iter() {
     //     for metric in family.metric.iter() {
@@ -237,7 +237,7 @@ fn get_known_labels<'a>(
         let mut known_labels = HashMap::with_capacity(label_strings.len());
         while let Some(row) = rows.next()? {
             let label: String = row.get(0)?;
-            let id: i64 = row.get(1)?;
+            let id: IndexType = row.get(1)?;
             known_labels.insert(label, id);
         }
         known_labels

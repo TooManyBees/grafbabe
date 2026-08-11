@@ -23,6 +23,8 @@ use std::error::Error;
 use std::path::Path;
 use std::time::SystemTime;
 
+pub type IndexType = i64;
+
 pub fn get_connection<P: AsRef<Path>>(path: P) -> Result<Connection, Box<dyn Error>> {
     let mut connection = open_or_create(&path)?;
     connection
