@@ -29,7 +29,7 @@ ureq = { version = "3.3.0", default-features = false, features = ["gzip"] }
 cfg_aliases = "0.2.2"
 
 [features]
-default = ["bundled_sqlite", "color"]
+default = ["bundled_sqlite", "color", "serve_live"]
 bundled_sqlite = ["rusqlite/bundled"]
 color = ["dep:anstyle", "env_logger/auto-color"]
 mock_data = []
