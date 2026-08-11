@@ -18,33 +18,10 @@ pub use prune_old_metrics::{prune_old_metrics, prune_unused_metrics};
 pub use seed_database::seed_database;
 pub use store_snapshot::store_snapshot;
 
-use prometheus_scraper::owned::MetricType;
-use rusqlite::{
-    Connection, ErrorCode, OpenFlags,
-    types::{ToSql, ToSqlOutput, Value},
-};
+use rusqlite::{Connection, ErrorCode, OpenFlags};
 use std::error::Error;
 use std::path::Path;
 use std::time::SystemTime;
-
-struct SqlMetricType(MetricType);
-impl ToSql for SqlMetricType {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        let value: i64 = match self.0 {
-            MetricType::Counter => 0,
-            MetricType::Gauge => 1,
-            MetricType::Summary => 2,
-            MetricType::Untyped => 3,
-            MetricType::Histogram => 4,
-            MetricType::GaugeHistogram => 5,
-            MetricType::NativeHistogram => 6,
-            MetricType::HybridHistogram => 7,
-            MetricType::StateSet => 8,
-            MetricType::Info => 9,
-        };
-        Ok(ToSqlOutput::Owned(Value::Integer(value)))
-    }
-}
 
 pub fn get_connection<P: AsRef<Path>>(path: P) -> Result<Connection, Box<dyn Error>> {
     let mut connection = open_or_create(&path)?;

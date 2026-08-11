@@ -1,6 +1,6 @@
-use crate::database::{SqlMetricType, now_ms};
+use crate::database::now_ms;
 use prometheus_scraper::borrowed::{Counter, Info, LabelPair, MetricFamily, MetricValue};
-use prometheus_scraper::owned::{Number, UnsignedNumber};
+use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{Connection, types::Value};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -33,7 +33,12 @@ pub fn store_snapshot(
     )?;
 
     for family in snapshot {
-        let metric_id = known_metrics[&family.name];
+        // A metric would not be in known_metrics if it was skipped by
+        // get_known_metrics because it was an unsupported type.
+        let metric_id = match known_metrics.get(&family.name) {
+            Some(id) => id,
+            None => continue,
+        };
 
         for metric in &family.metric {
             let value = match metric_value(&metric.value) {
@@ -74,6 +79,21 @@ pub enum UnsupportedMetricType {
     NativeHistogram,
     HybridHistogram,
     StateSet,
+}
+
+pub fn metric_type(t: MetricType) -> Result<i64, UnsupportedMetricType> {
+    match t {
+        MetricType::Counter => Ok(0),
+        MetricType::Gauge => Ok(1),
+        MetricType::Summary => Ok(2),
+        MetricType::Untyped => Ok(3),
+        MetricType::Histogram => Err(UnsupportedMetricType::Histogram), // 4
+        MetricType::GaugeHistogram => Err(UnsupportedMetricType::GaugeHistogram), // 5
+        MetricType::NativeHistogram => Err(UnsupportedMetricType::NativeHistogram), // 6
+        MetricType::HybridHistogram => Err(UnsupportedMetricType::HybridHistogram), // 7
+        MetricType::StateSet => Err(UnsupportedMetricType::StateSet),   // 8
+        MetricType::Info => Ok(9),
+    }
 }
 
 pub fn metric_value(v: &MetricValue) -> Result<i64, UnsupportedMetricType> {
@@ -133,12 +153,16 @@ fn get_known_metrics<'a>(
     )?;
     for metric in metrics {
         if !known_metrics.contains_key(&metric.name) {
+            let metric_type_value = match metric_type(metric.r#type) {
+                Ok(v) => v,
+                Err(t) => {
+                    log::warn!(metric_type:? = t; "Skipping unsupported metric type");
+                    continue;
+                }
+            };
+
             insert_statement.query_one(
-                (
-                    metric.name.clone(),
-                    SqlMetricType(metric.r#type),
-                    metric.help.clone(),
-                ),
+                (metric.name.clone(), metric_type_value, metric.help.clone()),
                 |row| {
                     known_metrics.insert(metric.name.clone(), row.get(0)?);
                     Ok(())
