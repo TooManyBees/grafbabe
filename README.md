@@ -17,6 +17,8 @@ If all you want is lines on graphs, high five, because grafbabe will give you li
 * Terminate TLS for its dashboard page (use a reverse proxy for this)
 * Hide the dashboard behind authentication (use a reverse proxy for this)
 * Allow dynamic customization of the dashboard (but you can make your own, and manually compile them into your own binary)
+* Deal with float or double precision values (i64s only for now, because that's all I needed when I wrote it)
+* Deal with any metric type except counters and gauges (histogram? I barely knew her!)
 
 ## Installation
 
