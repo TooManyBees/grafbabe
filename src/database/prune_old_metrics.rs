@@ -32,14 +32,16 @@ pub fn prune_unused_metrics(connection: &Connection) -> rusqlite::Result<(usize,
         statement.execute(())?
     };
 
-    log::info!(
-        "Dropped {dropped_metrics} unused {}",
-        if dropped_metrics == 1 {
-            "metric"
-        } else {
-            "metrics"
-        },
-    );
+    if dropped_metrics > 0 {
+        log::info!(
+            "Dropped {dropped_metrics} unused {}",
+            if dropped_metrics == 1 {
+                "metric"
+            } else {
+                "metrics"
+            },
+        );
+    }
 
     let dropped_labels = {
         let mut statement = connection.prepare(
@@ -54,14 +56,16 @@ pub fn prune_unused_metrics(connection: &Connection) -> rusqlite::Result<(usize,
         statement.execute(())?
     };
 
-    log::info!(
-        "Dropped {dropped_labels} unused {}",
-        if dropped_labels == 1 {
-            "label"
-        } else {
-            "labels"
-        }
-    );
+    if dropped_labels > 0 {
+        log::info!(
+            "Dropped {dropped_labels} unused {}",
+            if dropped_labels == 1 {
+                "label"
+            } else {
+                "labels"
+            }
+        );
+    }
 
     Ok((dropped_metrics, dropped_labels))
 }
