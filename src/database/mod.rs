@@ -10,9 +10,9 @@ mod store_snapshot;
 pub use get_metrics::get_metrics;
 #[cfg(feature = "mock_data")]
 pub use get_mock_data::get_mock_data;
-pub use migrations::MIGRATIONS;
+pub use migrations::SCHEMA;
 pub use migrations::auto_migrate;
-use migrations::migrate;
+use migrations::migrate_fresh_db;
 pub use prune_old_metrics::{prune_old_metrics, prune_unused_metrics};
 #[cfg(feature = "mock_data")]
 pub use seed_database::seed_database;
@@ -36,7 +36,7 @@ pub fn get_connection<P: AsRef<Path>>(path: P) -> Result<Connection, Box<dyn Err
     rusqlite::vtab::array::load_module(connection.as_ref())?;
     if let OpenResult::New(c) = &mut connection {
         log::debug!("Initializing new database");
-        migrate(c)?;
+        migrate_fresh_db(c)?;
     }
     Ok(connection.unwrap())
 }

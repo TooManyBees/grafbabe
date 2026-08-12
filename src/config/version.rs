@@ -17,10 +17,7 @@ pub fn version_more() {
         }
     }
 
-    println!("Known database migrations:");
-    for m in crate::database::MIGRATIONS {
-        println!("\t{}", m.name);
-    }
+    println!("Database schema:\n\t{}", crate::database::SCHEMA.name);
 
     #[cfg(not(debug_assertions))]
     {
