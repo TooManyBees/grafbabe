@@ -17,7 +17,7 @@ If all you want is lines on graphs, high five, because grafbabe will give you li
 * Terminate TLS for its dashboard page (use a reverse proxy for this)
 * Hide the dashboard behind authentication (use a reverse proxy for this)
 * Allow dynamic customization of the dashboard (but you can make your own, and manually compile them into your own binary)
-* Deal with float or double precision values (i64s only for now, because that's all I needed when I wrote it)
+* Deal with numbers big enough that f64s lose precision.
 * Deal with any metric type except counters and gauges (histogram? I barely knew her!)
 
 ## Installation
@@ -152,7 +152,7 @@ Compiling with `--features mock_data` enables the following commands, which lets
 
 ## Optional features
 
-* **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary. Do not disable this feature unless your system sqlite3 is version **3.53.0** at minimum (sorry, Debian users).
+* **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
 * **color** (enabled by default) supports color ANSI output when log format is set to "pretty".
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
 * **systemd_journal** enables the log target "systemd-journal"
