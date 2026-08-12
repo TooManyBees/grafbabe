@@ -195,6 +195,10 @@ pub enum MigrationError {
         name: &'static str,
         cause: rusqlite::Error,
     },
+    SQLiteVersion {
+        name: &'static str,
+        min_version: &'static str,
+    },
 }
 
 impl fmt::Display for MigrationError {
@@ -215,9 +219,17 @@ impl fmt::Display for MigrationError {
             MigrationError::Migration { name, cause } => {
                 write!(f, "Error running migration {name}.sql: {cause}")
             }
+            MigrationError::SQLiteVersion { min_version, name } => {
+                write!(
+                    f,
+                    "Migration {name} requires SQLite version {min_version}. Consider compiling with the bundled_sqlite feature."
+                )
+            }
         }
     }
 }
+
+static ALTER_COLUMN: &str = "ALTER COLUMN";
 
 impl MigrationError {
     fn from_migration(migration: &Migration, error: rusqlite::Error) -> MigrationError {
@@ -225,7 +237,15 @@ impl MigrationError {
             rusqlite::Error::SqlInputError {
                 msg, offset, sql, ..
             } => {
-                let index = migration.queries.find(&sql).unwrap_or(0) + offset as usize;
+                let offset = offset as usize;
+                if &sql[offset..offset + ALTER_COLUMN.len()] == ALTER_COLUMN {
+                    return MigrationError::SQLiteVersion {
+                        name: migration.name,
+                        min_version: "3.53.0",
+                    };
+                }
+
+                let index = migration.queries.find(&sql).unwrap_or(0) + offset;
                 let (line, col) = find_line_col(migration.queries, index);
                 MigrationError::Syntax {
                     name: migration.name,
