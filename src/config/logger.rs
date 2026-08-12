@@ -73,8 +73,8 @@ fn init_journal_logger(config: &Config) -> io::Result<()> {
     Ok(())
 }
 
-static NEEDS_ESCAPE_PRETTY: &'static [char] = &[' ', '"', '\\'];
-static NEEDS_ESCAPE_PLAIN: &'static [char] = &[' ', '"', '\\', '\n'];
+static NEEDS_ESCAPE_PRETTY: &[char] = &[' ', '"', '\\'];
+static NEEDS_ESCAPE_PLAIN: &[char] = &[' ', '"', '\\', '\n'];
 
 struct Visitor<'a> {
     format: LogFormat,

@@ -4,6 +4,7 @@ use std::{fmt, fs, io::ErrorKind, path::Path};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Migration {
+    from: &'static str,
     pub name: &'static str,
     queries: &'static str,
 }
@@ -24,29 +25,50 @@ impl Migration {
     }
 }
 
-macro_rules! include_migration {
+macro_rules! include_schema {
     ($name:tt) => {
         Migration {
+            from: "",
             name: $name,
-            queries: include_str!(concat!($name, ".sql")),
+            queries: include_str!("schema.sql"),
         }
     };
 }
 
-pub static MIGRATIONS: &'static [Migration] = &[
+macro_rules! include_migration {
+    ($from:tt, $to:tt) => {
+        Migration {
+            from: $from,
+            name: $to,
+            queries: include_str!(concat!($to, ".sql")),
+        }
+    };
+}
+
+pub static SCHEMA: Migration = include_schema!("001_change_values_to_real");
+
+static MIGRATIONS: &[Migration] = &[
     // Migrations refer to SQL files in this directory
-    include_migration!("000_init"),
-    #[cfg(test)]
-    include_migration!("000_unit_test_data"),
+    include_migration!("pre_migration", "000_init"),
+    include_migration!("000_init", "001_change_values_to_real"),
 ];
 
-pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
+fn migrate(connection: &mut Connection, from_migration: &str) -> Result<(), MigrationError> {
     if MIGRATIONS.is_empty() {
         return Ok(());
     }
 
-    let last_migration_name = last_migration(connection)?;
-    let migrations_to_run = migrations_after(last_migration_name);
+    if is_latest_migration(from_migration) {
+        return Ok(());
+    }
+
+    let migrations_to_run = {
+        let idx = MIGRATIONS.iter().position(|m| m.from == from_migration);
+        idx.map(|i| &MIGRATIONS[i..]).unwrap_or_default()
+    };
+    if migrations_to_run.is_empty() {
+        return Ok(());
+    }
 
     let transaction = connection.transaction()?;
     for migration in migrations_to_run {
@@ -58,80 +80,92 @@ pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
     Ok(transaction.commit()?)
 }
 
+pub fn migrate_fresh_db(connection: &mut Connection) -> Result<(), MigrationError> {
+    log::info!("Applying database schema {}", SCHEMA.name);
+    let transaction = connection.transaction()?;
+    SCHEMA
+        .execute(&transaction)
+        .map_err(|e| MigrationError::from_migration(&SCHEMA, e))?;
+    Ok(transaction.commit()?)
+}
+
 pub fn auto_migrate<P: AsRef<Path>>(
     connection: &mut Connection,
     database_path: P,
 ) -> Result<(), Box<dyn Error>> {
-    if !is_migrated(&connection)? {
-        log::info!("Migrating database");
-        let database_path = database_path.as_ref();
-        let backup_path = database_path.with_extension("bak.db3");
-        log::info!("Copying backup to {}", backup_path.to_string_lossy());
-        fs::copy(&database_path, &backup_path)?;
-        // The other database files might not exist yet, but should be
-        // backed-up.
-        if let Err(e) = fs::copy(
-            &database_path.with_extension("db3-shm"),
-            database_path.with_extension("bak.db3-shm"),
-        ) {
-            if e.kind() == ErrorKind::NotFound {
-                return Err(e.into());
-            }
+    match last_migration(connection)? {
+        None => migrate_fresh_db(connection)?,
+        Some(name) => {
+            log::info!("Migrating database");
+            backup_databases(database_path)?;
+            migrate(connection, &name)?;
         }
-        if let Err(e) = fs::copy(
-            &database_path.with_extension("db3-wal"),
-            database_path.with_extension("bak.db3-wal"),
-        ) {
-            if e.kind() == ErrorKind::NotFound {
-                return Err(e.into());
-            }
-        }
-        migrate(connection)?;
     }
 
     Ok(())
 }
 
-fn is_migrated(connection: &Connection) -> rusqlite::Result<bool> {
-    if MIGRATIONS.is_empty() {
-        return Ok(true);
-    }
-
-    let last_migration_name = last_migration(connection)?;
-
-    match last_migration_name {
-        Some(ref name) => log::debug!("last migration found: {}", name),
-        None => log::debug!("no migrations run yet"),
-    }
-
-    if let Some(last_migration_name) = last_migration_name.as_deref() {
-        if !MIGRATIONS.iter().any(|m| m.name == last_migration_name) {
-            log::warn!(
-                "database is migrated to unknown migration: {}",
-                last_migration_name
-            );
-            return Ok(true);
+fn backup_databases<P: AsRef<Path>>(database_path: P) -> std::io::Result<()> {
+    let database_path = database_path.as_ref();
+    let backup_path = database_path.with_extension("bak.db3");
+    log::info!("Copying backup to {}", backup_path.to_string_lossy());
+    fs::copy(&database_path, &backup_path)?;
+    // The other database files might not exist yet, but should be
+    // backed-up.
+    if let Err(e) = fs::copy(
+        &database_path.with_extension("db3-shm"),
+        database_path.with_extension("bak.db3-shm"),
+    ) {
+        if e.kind() == ErrorKind::NotFound {
+            return Err(e);
         }
     }
-
-    match (last_migration_name, MIGRATIONS.iter().last().unwrap()) {
-        (Some(name), migration) => Ok(name == migration.name),
-        (None, _) => Ok(false),
+    if let Err(e) = fs::copy(
+        &database_path.with_extension("db3-wal"),
+        database_path.with_extension("bak.db3-wal"),
+    ) {
+        if e.kind() == ErrorKind::NotFound {
+            return Err(e);
+        }
     }
+    Ok(())
+}
+
+fn is_latest_migration(migrate_from: &str) -> bool {
+    if MIGRATIONS.is_empty() {
+        return true;
+    }
+
+    if migrate_from != "pre_migration" && !MIGRATIONS.iter().any(|m| m.name == migrate_from) {
+        log::warn!(
+            "database is migrated to unknown migration: {}",
+            migrate_from,
+        );
+        return true;
+    }
+
+    migrate_from == MIGRATIONS[MIGRATIONS.len() - 1].name
 }
 
 fn last_migration(connection: &Connection) -> rusqlite::Result<Option<String>> {
-    match connection.query_one(
+    let (migration_aware, has_any_data) = connection.query_one(
         "SELECT EXISTS (
             SELECT name
             FROM sqlite_schema
             WHERE type = 'table' AND name = 'grafbabe_migrations'
+        ), EXISTS (
+            SELECT name
+            FROM sqlite_schema
+            WHERE type = 'table' AND name = 'metric_values'
         );",
         (),
-        |row| row.get(0),
-    )? {
-        true => {}
-        false => return Ok(None),
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+
+    match (migration_aware, has_any_data) {
+        (true, _) => {}
+        (false, true) => return Ok(Some("pre_migration".to_string())),
+        (false, false) => return Ok(None),
     }
 
     match connection.query_one(
@@ -143,22 +177,8 @@ fn last_migration(connection: &Connection) -> rusqlite::Result<Option<String>> {
         |row| row.get(0),
     ) {
         Ok(name) => Ok(Some(name)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(Some("000_init".to_string())),
         Err(e) => Err(e),
-    }
-}
-
-fn migrations_after<N: AsRef<str>>(name: Option<N>) -> &'static [Migration] {
-    let name = match name {
-        None => return MIGRATIONS,
-        Some(n) => n,
-    };
-
-    let idx = MIGRATIONS.iter().position(|m| m.name == name.as_ref());
-
-    match idx {
-        Some(i) => &MIGRATIONS[i + 1..],
-        None => &[],
     }
 }
 
@@ -174,6 +194,10 @@ pub enum MigrationError {
     Migration {
         name: &'static str,
         cause: rusqlite::Error,
+    },
+    SQLiteVersion {
+        name: &'static str,
+        min_version: &'static str,
     },
 }
 
@@ -195,9 +219,17 @@ impl fmt::Display for MigrationError {
             MigrationError::Migration { name, cause } => {
                 write!(f, "Error running migration {name}.sql: {cause}")
             }
+            MigrationError::SQLiteVersion { min_version, name } => {
+                write!(
+                    f,
+                    "Migration {name} requires SQLite version {min_version}. Consider compiling with the bundled_sqlite feature."
+                )
+            }
         }
     }
 }
+
+static ALTER_COLUMN: &str = "ALTER COLUMN";
 
 impl MigrationError {
     fn from_migration(migration: &Migration, error: rusqlite::Error) -> MigrationError {
@@ -205,7 +237,15 @@ impl MigrationError {
             rusqlite::Error::SqlInputError {
                 msg, offset, sql, ..
             } => {
-                let index = migration.queries.find(&sql).unwrap_or(0) + offset as usize;
+                let offset = offset as usize;
+                if &sql[offset..offset + ALTER_COLUMN.len()] == ALTER_COLUMN {
+                    return MigrationError::SQLiteVersion {
+                        name: migration.name,
+                        min_version: "3.53.0",
+                    };
+                }
+
+                let index = migration.queries.find(&sql).unwrap_or(0) + offset;
                 let (line, col) = find_line_col(migration.queries, index);
                 MigrationError::Syntax {
                     name: migration.name,
@@ -242,34 +282,52 @@ fn find_line_col(s: &str, index: usize) -> (usize, usize) {
 
 #[cfg(test)]
 mod test {
-    use super::{MIGRATIONS, is_migrated, last_migration, migrate, migrations_after};
+    use super::{
+        MIGRATIONS, Migration, SCHEMA, is_latest_migration, last_migration, migrate,
+        migrate_fresh_db,
+    };
     use rusqlite::Connection;
 
     #[test]
-    fn last_migration_returns_none_on_new_db() {
+    fn schema_and_latest_migration_have_the_same_name() {
+        assert_eq!(SCHEMA.name, MIGRATIONS.iter().last().unwrap().name);
+    }
+
+    #[test]
+    fn last_migration_detects_new_db() {
         let db = in_memory_db();
         let last_migration_name = last_migration(&db);
         assert_eq!(Ok(None), last_migration_name);
     }
 
     #[test]
-    fn last_migration_returns_none_on_legacy_db() {
+    fn last_migration_detects_legacy_db() {
         let db = in_memory_db();
-        pre_migration_schema(&db).expect("couldn't initialize db as pre-migration version did");
+        apply_schema_pre_migration(&db).expect("couldn't apply schema");
         let last_migration_name = last_migration(&db);
-        assert_eq!(Ok(None), last_migration_name);
+        assert_eq!(Ok(Some("pre_migration".to_string())), last_migration_name);
+    }
+
+    #[test]
+    fn last_migration_returns_000_init() {
+        let mut db = in_memory_db();
+        apply_schema_000_init(&mut db).expect("couldn't apply schema");
+        let last_migration_name = last_migration(&db);
+        assert_eq!(Ok(Some("000_init".to_string())), last_migration_name);
     }
 
     #[test]
     fn last_migration_returns_name_of_last_migration() {
         let db = in_memory_db();
+        db.execute("CREATE TABLE metric_values (thing ANY);", ())
+            .unwrap();
         let expected_name = "5678_cool_migration";
         db.execute(
             "CREATE TABLE grafbabe_migrations (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL
             ) STRICT;",
-            [],
+            (),
         )
         .expect("couldn't insert migrations table");
         db.execute(
@@ -285,52 +343,42 @@ mod test {
     }
 
     #[test]
-    fn is_migrated_detects_empty_database() {
-        let db = in_memory_db();
-        assert!(!is_migrated(&db).unwrap());
+    fn is_latest_migration_detects_pre_migration_database() {
+        assert!(!is_latest_migration("pre_migration"));
     }
 
     #[test]
-    fn is_migrated_detects_missing_migrations() {
+    fn is_latest_migration_detects_pending_migrations() {
+        assert!(!is_latest_migration("000_init"));
+    }
+
+    #[test]
+    fn is_latest_migration_detects_up_to_date_migration() {
+        assert!(is_latest_migration("001_change_values_to_real"));
+    }
+
+    #[test]
+    fn is_latest_migration_detects_unknown_migration() {
+        assert!(is_latest_migration("3456_unknown_migration"));
+    }
+
+    #[test]
+    fn migrate_from_fresh_db() {
         let mut db = in_memory_db();
-        let mut transaction = db.transaction().unwrap();
-        MIGRATIONS[0].execute(&mut transaction).unwrap();
-        transaction.commit().unwrap();
-        assert!(!is_migrated(&db).unwrap());
+        migrate_fresh_db(&mut db).expect("couldn't perform fresh migration");
+        let inserted_migration_names = read_migration_names(&db).unwrap();
+        assert_eq!(
+            vec![MIGRATIONS[MIGRATIONS.len() - 1].name.to_string()],
+            inserted_migration_names
+        );
     }
 
     #[test]
-    fn is_migrated_detects_up_to_date_database() {
+    fn migrate_from_pre_migration() {
         let mut db = in_memory_db();
-        let _ = migrate(&mut db);
-        assert!(is_migrated(&db).unwrap());
-    }
+        apply_schema_pre_migration(&db).expect("couldn't apply schema");
 
-    #[test]
-    fn is_migrated_detects_unknown_migrations() {
-        let mut db = in_memory_db();
-        let mut transaction = db.transaction().unwrap();
-        MIGRATIONS[0].execute(&mut transaction).unwrap();
-        transaction.commit().unwrap();
-
-        db.execute(
-            "INSERT INTO grafbabe_migrations (name)
-            VALUES ('000_init'), ('000_unit_test_data'), ('nonexistant');",
-            (),
-        )
-        .unwrap();
-        assert!(is_migrated(&db).unwrap());
-    }
-
-    #[test]
-    fn migrations_after_skips_migrations_until_match() {
-        assert_eq!(&MIGRATIONS[1..], migrations_after(Some("000_init")))
-    }
-
-    #[test]
-    fn all_the_migrations_work() {
-        let mut db = in_memory_db();
-        migrate(&mut db).expect("migrations failed");
+        migrate(&mut db, "pre_migration").expect("migrations failed");
 
         let inserted_migration_names =
             read_migration_names(&db).expect("couldn't read migration names");
@@ -342,10 +390,10 @@ mod test {
     }
 
     #[test]
-    fn all_the_migrations_work_on_legacy_db() {
+    fn migrate_from_000_init() {
         let mut db = in_memory_db();
-        pre_migration_schema(&db).expect("couldn't initialize db as pre-migration version did");
-        migrate(&mut db).expect("migrations failed");
+        apply_schema_000_init(&mut db).expect("couldn't apply schema");
+        migrate(&mut db, "000_init").expect("migrations failed");
 
         let inserted_migration_names =
             read_migration_names(&db).expect("couldn't read migration names");
@@ -354,6 +402,59 @@ mod test {
             MIGRATIONS.iter().map(|m| m.name.to_string()).collect();
 
         assert_eq!(all_migration_names, inserted_migration_names);
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    struct SQLiteSchema {
+        name: String,
+        kind: String,
+        table: String,
+        sql: String,
+    }
+    impl SQLiteSchema {
+        fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+            let name = row.get(0)?;
+            let kind = row.get(1)?;
+            let table = row.get(2)?;
+            let sql: String = row.get(3)?;
+            let sql = sql.replace([' ', '\t', '\r', '\n'], "");
+
+            Ok(SQLiteSchema {
+                name,
+                kind,
+                table,
+                sql,
+            })
+        }
+    }
+
+    #[test]
+    fn migrations_are_identical_to_schema() {
+        const QUERY: &str = "SELECT name, type, tbl_name, sql
+            FROM sqlite_schema
+            ORDER BY name;";
+
+        let state_from_migrations = {
+            let mut db = in_memory_db();
+            apply_schema_pre_migration(&db).expect("could't apply schema");
+            migrate(&mut db, "pre_migration").expect("migrations failed");
+            let mut statement = db.prepare(QUERY).expect("couldn't prepare");
+            let rows = statement
+                .query_map((), SQLiteSchema::from_row)
+                .expect("couldn't query schema");
+            rows.map(|r| r.unwrap()).collect::<Vec<_>>()
+        };
+        let state_from_schema = {
+            let mut db = in_memory_db();
+            migrate_fresh_db(&mut db).expect("could't apply schema");
+            let mut statement = db.prepare(QUERY).expect("couldn't prepare");
+            let rows = statement
+                .query_map((), SQLiteSchema::from_row)
+                .expect("couldn't query schema");
+            rows.map(|r| r.unwrap()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(state_from_schema, state_from_migrations);
     }
 
     fn in_memory_db() -> Connection {
@@ -377,7 +478,7 @@ mod test {
         Ok(names)
     }
 
-    fn pre_migration_schema(db: &Connection) -> rusqlite::Result<()> {
+    fn apply_schema_pre_migration(db: &Connection) -> rusqlite::Result<()> {
         // Previously the contents of the database/init.rs module
         db.execute(
             "CREATE TABLE IF NOT EXISTS metrics (
@@ -432,5 +533,52 @@ mod test {
         )?;
 
         Ok(())
+    }
+
+    fn apply_schema_000_init(db: &mut Connection) -> rusqlite::Result<()> {
+        let schema = Migration {
+            from: "",
+            name: "000_init",
+            queries: "CREATE TABLE IF NOT EXISTS metrics (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                kind INTEGER NOT NULL DEFAULT 0,
+                help TEXT
+            ) STRICT;
+
+            CREATE UNIQUE INDEX IF NOT EXISTS metrics_by_name ON metrics(name);
+
+            CREATE TABLE IF NOT EXISTS labels (
+                id INTEGER PRIMARY KEY,
+                label TEXT NOT NULL
+            ) STRICT;
+
+            CREATE UNIQUE INDEX IF NOT EXISTS labels_by_label ON labels(label);
+
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY,
+                timestamp INTEGER NOT NULL
+            ) STRICT;
+
+            CREATE UNIQUE INDEX IF NOT EXISTS events_by_timestamp ON events(timestamp);
+
+            CREATE TABLE IF NOT EXISTS metric_values (
+                metric_id INTEGER NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
+                label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE,
+                event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                value INTEGER NOT NULL
+            ) STRICT;
+
+            CREATE INDEX IF NOT EXISTS metric_values_by_event_id ON metric_values(event_id);
+
+            CREATE TABLE grafbabe_migrations (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            ) STRICT;",
+        };
+
+        let transaction = db.transaction()?;
+        schema.execute(&transaction)?;
+        transaction.commit()
     }
 }

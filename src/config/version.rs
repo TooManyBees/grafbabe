@@ -1,6 +1,6 @@
-pub static NAME: &'static str = env!("CARGO_CRATE_NAME");
-static VERSION: &'static str = env!("CARGO_PKG_VERSION");
-static FEATURES: &'static str = env!("GRAFBABE_FEATURES");
+pub static NAME: &str = env!("CARGO_CRATE_NAME");
+static VERSION: &str = env!("CARGO_PKG_VERSION");
+static FEATURES: &str = env!("GRAFBABE_FEATURES");
 
 pub fn version() {
     println!("{NAME} {VERSION}");
@@ -17,10 +17,7 @@ pub fn version_more() {
         }
     }
 
-    println!("Known database migrations:");
-    for m in crate::database::MIGRATIONS {
-        println!("\t{}", m.name);
-    }
+    println!("Database schema:\n\t{}", crate::database::SCHEMA.name);
 
     #[cfg(not(debug_assertions))]
     {
