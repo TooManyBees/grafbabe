@@ -47,7 +47,7 @@ macro_rules! include_migration {
 
 pub static SCHEMA: Migration = include_schema!("001_change_values_to_real");
 
-static MIGRATIONS: &'static [Migration] = &[
+static MIGRATIONS: &[Migration] = &[
     // Migrations refer to SQL files in this directory
     include_migration!("pre_migration", "000_init"),
     include_migration!("000_init", "001_change_values_to_real"),
