@@ -404,6 +404,59 @@ mod test {
         assert_eq!(all_migration_names, inserted_migration_names);
     }
 
+    #[derive(Debug, Eq, PartialEq)]
+    struct SQLiteSchema {
+        name: String,
+        kind: String,
+        table: String,
+        sql: String,
+    }
+    impl SQLiteSchema {
+        fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+            let name = row.get(0)?;
+            let kind = row.get(1)?;
+            let table = row.get(2)?;
+            let sql: String = row.get(3)?;
+            let sql = sql.replace([' ', '\t', '\r', '\n'], "");
+
+            Ok(SQLiteSchema {
+                name,
+                kind,
+                table,
+                sql,
+            })
+        }
+    }
+
+    #[test]
+    fn migrations_are_identical_to_schema() {
+        const QUERY: &str = "SELECT name, type, tbl_name, sql
+            FROM sqlite_schema
+            ORDER BY name;";
+
+        let state_from_migrations = {
+            let mut db = in_memory_db();
+            apply_schema_pre_migration(&db).expect("could't apply schema");
+            migrate(&mut db, "pre_migration").expect("migrations failed");
+            let mut statement = db.prepare(QUERY).expect("couldn't prepare");
+            let rows = statement
+                .query_map((), SQLiteSchema::from_row)
+                .expect("couldn't query schema");
+            rows.map(|r| r.unwrap()).collect::<Vec<_>>()
+        };
+        let state_from_schema = {
+            let mut db = in_memory_db();
+            migrate_fresh_db(&mut db).expect("could't apply schema");
+            let mut statement = db.prepare(QUERY).expect("couldn't prepare");
+            let rows = statement
+                .query_map((), SQLiteSchema::from_row)
+                .expect("couldn't query schema");
+            rows.map(|r| r.unwrap()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(state_from_schema, state_from_migrations);
+    }
+
     fn in_memory_db() -> Connection {
         in_memory_db_inner().expect("couldn't create in-memory db")
     }
