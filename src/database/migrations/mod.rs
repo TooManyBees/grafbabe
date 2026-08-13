@@ -54,14 +54,6 @@ static MIGRATIONS: &[Migration] = &[
 ];
 
 fn migrate(connection: &mut Connection, from_migration: &str) -> Result<(), MigrationError> {
-    if MIGRATIONS.is_empty() {
-        return Ok(());
-    }
-
-    if is_latest_migration(from_migration) {
-        return Ok(());
-    }
-
     let migrations_to_run = {
         let idx = MIGRATIONS.iter().position(|m| m.from == from_migration);
         idx.map(|i| &MIGRATIONS[i..]).unwrap_or_default()
@@ -95,10 +87,12 @@ pub fn auto_migrate<P: AsRef<Path>>(
 ) -> Result<(), Box<dyn Error>> {
     match last_migration(connection)? {
         None => migrate_fresh_db(connection)?,
-        Some(name) => {
-            log::info!("Migrating database");
-            backup_databases(database_path)?;
-            migrate(connection, &name)?;
+        Some(from_migration) => {
+            if !is_latest_migration(&from_migration) {
+                log::info!("Migrating database");
+                backup_databases(database_path)?;
+                migrate(connection, &from_migration)?;
+            }
         }
     }
 
