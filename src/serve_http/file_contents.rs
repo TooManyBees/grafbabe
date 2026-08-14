@@ -1,4 +1,4 @@
-#[cfg(not(debug_assertions))]
+#[cfg(serve_included)]
 use grafbabe_macros::{include_dir_etag, include_dir_root};
 use std::borrow::Cow;
 use std::io::Error;
@@ -8,10 +8,15 @@ pub fn file_contents(
     path: &str,
     if_none_match: Option<&str>,
 ) -> Result<FileResult, Error> {
-    #[cfg(debug_assertions)]
-    let result = read_file(root, path);
-    #[cfg(not(debug_assertions))]
-    let result = read_included(path);
+    let result = cfg_select! {
+        all(serve_live, serve_included) => if root.is_some() {
+            read_file(root, path)
+        } else {
+            read_included(path)
+        },
+        serve_live => read_file(root, path),
+        serve_included => read_included(path),
+    };
 
     if let Some(if_none_match) = if_none_match {
         if let Ok(FileResult::Found { ref etag, .. }) = result {
@@ -33,7 +38,7 @@ pub enum FileResult {
     },
 }
 
-#[cfg(debug_assertions)]
+#[cfg(serve_live)]
 fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
     use std::fs::File;
     use std::io::{ErrorKind, Read};
@@ -70,13 +75,13 @@ fn read_file(root: Option<&str>, filename: &str) -> Result<FileResult, Error> {
     })
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(serve_included)]
 pub static INCLUDED_FILES: &'static [(&'static str, (&'static str, &'static str))] =
     include_dir_etag!("frontend");
-#[cfg(not(debug_assertions))]
+#[cfg(serve_included)]
 pub static INCLUDED_FILES_ROOT: &'static str = include_dir_root!("frontend");
 
-#[cfg(not(debug_assertions))]
+#[cfg(serve_included)]
 fn read_included(path: &str) -> Result<FileResult, Error> {
     let maybe_found = INCLUDED_FILES.iter().find(|(key, _)| *key == path);
     let (contents, etag) = match maybe_found {

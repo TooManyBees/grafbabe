@@ -30,11 +30,19 @@ Consider a systemd unit file, or whatever task manager nonsense your server need
 
 ## Usage
 
-`grafbabe` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`
+`grafbabe` or `grafbabe serve` runs the server with default settings, which is not very useful unless the Prometheus endpoint you wish to monitor just so happens to be at `http://localhost:80/metrics`.
 
-`grafbabe -c /path/to/config.ini` runs the server with settings defined in `/path/to/config.ini`. See [Configuration](#configuration) below for valid options.
+The option `-c /path/to/config.ini` reads settings from the file `/path/to/config.ini`. See [Configuration](#configuration) below for valid settings.
 
-Newer versions may try to upgrade your database in place, but they will back up the existing database before attempting to do so. `grafbabe -vv` will list the migrations known to it, which you can compare to the query
+`grafbabe serve live` runs the server while serving frontend assets from the filesystem. (This is only useful when compiled for release with `--features serve_live`. In dev, this is identical to `grafbabe serve`.)
+
+The option `-h` shows help.
+
+The option `-v` shows the version.
+
+The option `-vv` shows more detailed version, including how it was compiled.
+
+Newer versions may try to upgrade your database in place, but they will back up the existing database before attempting to do so. `grafbabe -vv` will show the latest database revision, which you can compare to the query
 
 ```sql
 select * from grafbabe_migrations;
@@ -71,7 +79,8 @@ prometheus_addr = http://localhost/metrics
 #
 # If set, frontend assets will be served from this directory.
 # In dev, the default is the "frontend" directory (included in
-# the codebase). In release, this setting is ignored.
+# the codebase). In release, this setting is ignored unless
+# grafbabe is started with the command `serve live`.
 #
 frontend_dir = frontend
 
@@ -155,6 +164,7 @@ Compiling with `--features mock_data` enables the following commands, which lets
 * **bundled_sqlite** (enabled by defualt) includes SQLite into the binary. You can disable this to link to system sqlite3 libraries, and shrink the binary.
 * **color** (enabled by default) supports color ANSI output when log format is set to "pretty".
 * **mock_data** as described in [Usage](#usage), enables the commands `grafbabe mock <path>` and `grafbabe seed <path>`.
+* **serve_live** (enabled by default) as described in [Usage](#usage), enables the command `grafbabe serve live`.
 * **systemd_journal** enables the log target "systemd-journal"
 * **tls** allows grafbabe to make requests to a Prometheus endpoint over HTTPS.
 
@@ -169,6 +179,8 @@ Compile with `--features <list,of,features>` to enable any.
 When compiled for dev, grafbabe reads frontend HTML and JavaScript from the `frontend` directory, relative to the current working directory. The config file's `frontend_dir` value can be used to change this location. This setting is ignored in release.
 
 When compiled in release, frontend assets are written into the binary. As in dev, the default is the `frontend` directory. To change this location, compile grafbabe with the env variable `GRAFBABE_FRONTEND` set to a different location.
+
+When compiled in release with `--features serve_live`, the `serve live` command will serve frontend assets from the filesystem, as it does by default in dev. The config file's `frontend_dir` must be set. Only consider using this to test frontend changes before compiling them into a binary. **I'm not responsible for someone traversing your file tree while this is in use.**
 
 Some notes on compiled frontend assets:
 

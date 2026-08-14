@@ -25,10 +25,14 @@ serde_json = "1.0"
 systemd-journal-logger = { version = "2.2.2", optional = true }
 ureq = { version = "3.3.0", default-features = false, features = ["gzip"] }
 
+[build-dependencies]
+cfg_aliases = "0.2.2"
+
 [features]
-default = ["bundled_sqlite", "color"]
+default = ["bundled_sqlite", "color", "serve_live"]
 bundled_sqlite = ["rusqlite/bundled"]
 color = ["dep:anstyle", "env_logger/auto-color"]
 mock_data = []
+serve_live = []
 systemd_journal = ["dep:systemd-journal-logger"]
 tls = ["ureq/rustls"]
