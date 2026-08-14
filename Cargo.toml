@@ -1,6 +1,6 @@
 [package]
 name = "grafbabe"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Jess Bees"]
 edition = "2024"
 rust-version = "1.95"
