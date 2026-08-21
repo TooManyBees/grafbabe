@@ -11,6 +11,8 @@ If all you want is lines on graphs, high five, because grafbabe will give you li
 * Serves one (and only one) dashboard over HTTP
 * Shows lines on graphs, that's it
 
+![Screenshot of the dashboard, showing a dropdown menu set to a 30 day duration, and 4 rectangular line graphs below it](dashboard.png)
+
 ## What it does not do
 
 * Queries, insights, trends, alerts: these are all out of scope
