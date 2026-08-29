@@ -4,6 +4,7 @@ use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{Connection, types::Value};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 pub fn store_snapshot(
@@ -49,7 +50,11 @@ pub fn store_snapshot(
                 }
             };
 
-            let label_id = labels_to_db(&metric.label).map(|string| known_labels[&string]);
+            let label_id = if metric.label.is_empty() {
+                None
+            } else {
+                Some(known_labels[&HashableLabels(&metric.label)])
+            };
 
             insert_statement.execute((metric_id, label_id, event_id, value))?;
         }
@@ -192,55 +197,68 @@ pub fn labels_to_db(labels: &[LabelPair]) -> Option<String> {
     Some(parts.join(","))
 }
 
+struct HashableLabels<'l>(&'l [LabelPair<'l>]);
+impl<'a> PartialEq for HashableLabels<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.len() != other.0.len() {
+            return false;
+        }
+        for (lhs, rhs) in self.0.iter().zip(other.0) {
+            if lhs.name != rhs.name || lhs.value != rhs.value {
+                return false;
+            }
+        }
+        true
+    }
+}
+impl<'a> Eq for HashableLabels<'a> {}
+impl<'a> Hash for HashableLabels<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for pair in self.0 {
+            pair.name.hash(state);
+            pair.value.hash(state);
+        }
+    }
+}
+
 fn get_known_labels<'a>(
     connection: &mut Connection,
-    metrics: &[MetricFamily<'a>],
-) -> rusqlite::Result<HashMap<String, IndexType>> {
-    // let mut label_identifiers: HashMap<&'a [LabelPair<'a>], String> = HashMap::new();
-    // for family in metrics.iter() {
-    //     for metric in family.metric.iter() {
-    //         if metric.label.is_empty() {
-    //             continue;
-    //         }
-    //         if &label_identifiers.contains_key(&metric.label) {
-    //             label_identifiers.insert(metric_label, labels_to_db(&metric.label));
-    //         }
-    //     }
-    // }
+    metrics: &'a [MetricFamily<'a>],
+) -> rusqlite::Result<HashMap<HashableLabels<'a>, Option<IndexType>>> {
+    let mut label_identifiers: HashMap<HashableLabels<'a>, Option<String>> = HashMap::new();
+    for family in metrics.iter() {
+        for metric in family.metric.iter() {
+            let labels = match &metric.value {
+                MetricValue::Info(Info { labels }) => HashableLabels(labels),
+                _ => HashableLabels(&metric.label),
+            };
+            if !label_identifiers.contains_key(&labels) {
+                label_identifiers.insert(labels, labels_to_db(&metric.label));
+            }
+        }
+    }
 
-    let label_strings: Vec<_> = metrics
-        .iter()
-        .flat_map(|family| {
-            family
-                .metric
-                .iter()
-                .filter_map(|metric| match &metric.value {
-                    MetricValue::Info(Info { labels }) => labels_to_db(labels),
-                    _ => labels_to_db(&metric.label),
-                })
-        })
-        .collect();
     let label_values = Rc::new(
-        label_strings
-            .iter()
+        label_identifiers
+            .values()
             .map(|l| Value::from(l.clone()))
             .collect::<Vec<_>>(),
     );
 
-    let mut known_labels = {
+    let labels_by_string = {
         let mut statement = connection.prepare(
             "SELECT label, id
             FROM labels
             WHERE label IN rarray(?1);",
         )?;
-        let mut rows = statement.query([label_values])?;
-        let mut known_labels = HashMap::with_capacity(label_strings.len());
+        let mut rows = statement.query([label_values.clone()])?;
+        let mut labels_by_string = HashMap::with_capacity(label_values.len());
         while let Some(row) = rows.next()? {
             let label: String = row.get(0)?;
             let id: IndexType = row.get(1)?;
-            known_labels.insert(label, id);
+            labels_by_string.insert(label, id);
         }
-        known_labels
+        labels_by_string
     };
 
     let transaction = connection.transaction()?;
@@ -250,12 +268,20 @@ fn get_known_labels<'a>(
         VALUES (?)
         RETURNING id;",
     )?;
-    for label_string in label_strings.into_iter() {
-        if !known_labels.contains_key(&label_string) {
-            insert_statement.query_one([label_string.clone()], |row| {
-                known_labels.insert(label_string, row.get(0)?);
-                Ok(())
-            })?;
+    let mut known_labels = HashMap::with_capacity(label_values.len());
+    for (labels, stringified) in label_identifiers.into_iter() {
+        if let Some(ref s) = stringified {
+            match labels_by_string.get(s).copied() {
+                Some(id) => {
+                    known_labels.insert(labels, Some(id));
+                }
+                None => {
+                    let id = insert_statement.query_one([stringified], |row| row.get(0))?;
+                    known_labels.insert(labels, Some(id));
+                }
+            }
+        } else {
+            known_labels.insert(labels, None);
         }
     }
 
