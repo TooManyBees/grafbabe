@@ -26,10 +26,10 @@ impl Migration {
 }
 
 macro_rules! include_schema {
-    ($name:tt) => {
+    () => {
         Migration {
             from: "",
-            name: $name,
+            name: MIGRATIONS[MIGRATIONS.len() - 1].name,
             queries: include_str!("schema.sql"),
         }
     };
@@ -45,13 +45,13 @@ macro_rules! include_migration {
     };
 }
 
-pub static SCHEMA: Migration = include_schema!("001_change_values_to_real");
-
 static MIGRATIONS: &[Migration] = &[
     // Migrations refer to SQL files in this directory
     include_migration!("pre_migration", "000_init"),
     include_migration!("000_init", "001_change_values_to_real"),
 ];
+
+pub static SCHEMA: Migration = include_schema!();
 
 fn migrate(connection: &mut Connection, from_migration: &str) -> Result<(), MigrationError> {
     let migrations_to_run = {
