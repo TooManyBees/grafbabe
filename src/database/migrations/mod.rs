@@ -337,18 +337,24 @@ mod test {
     }
 
     #[test]
-    fn is_latest_migration_detects_pre_migration_database() {
-        assert!(!is_latest_migration("pre_migration"));
-    }
-
-    #[test]
-    fn is_latest_migration_detects_pending_migrations() {
-        assert!(!is_latest_migration("000_init"));
+    fn is_latest_migration_detects_old_migrations() {
+        for migration in &MIGRATIONS[..MIGRATIONS.len() - 1] {
+            assert!(
+                !is_latest_migration(migration.name),
+                "assertion failed: !is_latest_migration(\"{}\")",
+                migration.name
+            );
+        }
     }
 
     #[test]
     fn is_latest_migration_detects_up_to_date_migration() {
-        assert!(is_latest_migration("001_change_values_to_real"));
+        let migration = MIGRATIONS.last().expect("no migrations to test");
+        assert!(
+            is_latest_migration(migration.name),
+            "assertion failed: is_latest_migration(\"{}\")",
+            migration.name
+        );
     }
 
     #[test]
