@@ -49,6 +49,7 @@ static MIGRATIONS: &[Migration] = &[
     // Migrations refer to SQL files in this directory
     include_migration!("pre_migration", "000_init"),
     include_migration!("000_init", "001_change_values_to_real"),
+    include_migration!("001_change_values_to_real", "002_histograms"),
 ];
 
 pub static SCHEMA: Migration = include_schema!();
