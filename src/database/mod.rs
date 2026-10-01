@@ -96,3 +96,22 @@ fn now_ms() -> i64 {
         .map(|d| d.as_millis() as i64)
         .unwrap_or_else(|e| e.duration().as_millis() as i64 * -1)
 }
+
+fn metric_kind_str(numeric: IndexType) -> &'static str {
+    match numeric {
+        0 => "counter",
+        1 => "gauge",
+        2 => "summary",
+        3 => "untyped",
+        4 => "histogram",
+        5 => "gaugehistogram",
+        6 => "nativehistogram",
+        7 => "hybridhistogram",
+        8 => "stateset",
+        9 => "info",
+        n => {
+            log::warn!("Unrecognized metric kind: {n}");
+            "counter"
+        }
+    }
+}

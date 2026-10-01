@@ -1,6 +1,8 @@
-use crate::database::store_snapshot::{SimplifiedValue, labels_to_db, metric_value};
+use crate::database::metric_kind_str;
+use crate::database::store_snapshot::{SimplifiedValue, labels_to_db, metric_type, metric_value};
 use crate::models::{Metrics, Series, Window};
 use prometheus_scraper::borrowed::MetricFamily;
+use prometheus_scraper::owned::MetricType;
 use std::time::{Duration, SystemTime};
 
 pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Window) -> Metrics {
@@ -21,6 +23,7 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
     let series = mock_data
         .iter()
         .flat_map(|family| {
+            let metric_kind = metric_kind_from_scraper(family.r#type);
             family
                 .metric
                 .iter()
@@ -31,7 +34,7 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
                         false
                     }
                 })
-                .flat_map(|metric| {
+                .flat_map(move |metric| {
                     let name = family.name.to_string();
                     let label = labels_to_db(&metric.label);
                     let iter: Box<dyn Iterator<Item = Series>> = match metric_value(&metric.value) {
@@ -39,6 +42,7 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
                             let values = extrapolate_from_value(fraction, f, num_samples);
                             let series = Series {
                                 name,
+                                kind: metric_kind,
                                 label,
                                 values,
                             };
@@ -50,6 +54,7 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
                                 let le_label = format!("le={le}");
                                 Series {
                                     name: name.clone(),
+                                    kind: metric_kind,
                                     label: label
                                         .as_ref()
                                         .map(|l| format!("{l},{le_label}"))
@@ -75,4 +80,14 @@ fn extrapolate_from_value(fraction: f64, value: f64, num_samples: usize) -> Vec<
         .map(|n| value - step_amount * (n as f64))
         .map(Some)
         .collect()
+}
+
+fn metric_kind_from_scraper(t: MetricType) -> &'static str {
+    match metric_type(t) {
+        Ok(n) => metric_kind_str(n),
+        Err(_) => {
+            log::warn!("Unrecognized metric type: {t:?}");
+            "counter"
+        }
+    }
 }

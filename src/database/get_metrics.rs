@@ -1,9 +1,15 @@
-use crate::database::{IndexType, now_ms};
+use crate::database::{IndexType, metric_kind_str, now_ms};
 use crate::models::{Metrics, Series, Window};
 use rusqlite::{Connection, types::Value};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+struct MetricDefinition {
+    metric_name: String,
+    metric_kind: &'static str,
+    label_name: Option<String>,
+}
 
 pub fn get_metrics(
     connection: &Connection,
@@ -33,9 +39,9 @@ pub fn get_metrics(
         ts
     };
 
-    let metric_ids: HashMap<(IndexType, Option<IndexType>), (String, Option<String>)> = {
+    let metric_ids: HashMap<(IndexType, Option<IndexType>), MetricDefinition> = {
         let mut statement = connection.prepare(
-            "SELECT DISTINCT metrics.id AS metric_id, metrics.name AS metric_name, labels.id AS label_id, labels.label AS label
+            "SELECT DISTINCT metrics.id AS metric_id, metrics.name AS metric_name, metrics.kind AS metric_kind, labels.id AS label_id, labels.label AS label
             FROM metric_values
             INNER JOIN metrics ON metric_values.metric_id = metrics.id
             LEFT JOIN labels ON metric_values.label_id = labels.id
@@ -43,14 +49,22 @@ pub fn get_metrics(
             WHERE events.id IN rarray(?1);"
         )?;
         let mut rows = statement.query([event_ids.clone()])?;
-        let mut metric_ids: HashMap<(IndexType, Option<IndexType>), (String, Option<String>)> =
+        let mut metric_ids: HashMap<(IndexType, Option<IndexType>), MetricDefinition> =
             HashMap::new();
         while let Some(row) = rows.next()? {
             let metric_id: IndexType = row.get(0)?;
             let metric_name: String = row.get(1)?;
-            let label_id: Option<IndexType> = row.get(2)?;
-            let label_name: Option<String> = row.get(3)?;
-            metric_ids.insert((metric_id, label_id), (metric_name, label_name));
+            let metric_kind = metric_kind_str(row.get(2)?);
+            let label_id: Option<IndexType> = row.get(3)?;
+            let label_name: Option<String> = row.get(4)?;
+            metric_ids.insert(
+                (metric_id, label_id),
+                MetricDefinition {
+                    metric_name,
+                    metric_kind,
+                    label_name,
+                },
+            );
         }
         metric_ids
     };
@@ -74,18 +88,24 @@ pub fn get_metrics(
             let value: Option<f64> = row.get(2)?;
             let bucket_le: Option<f64> = row.get(3)?;
 
-            let (metric_name, label_name) = metric_ids[&(metric_id, label_id)].clone();
+            let MetricDefinition {
+                metric_name,
+                metric_kind,
+                label_name,
+            } = &metric_ids[&(metric_id, label_id)];
 
             let label_name = match (label_name.as_ref(), bucket_le) {
                 (Some(label), Some(le)) => Some(format!("{label},le={le}")),
                 (None, Some(le)) => Some(format!("le={le}")),
-                (Some(_), None) => label_name,
+                (Some(_), None) => label_name.clone(),
                 (None, None) => None,
             };
 
             events
                 .entry((metric_name.clone(), label_name.clone()))
-                .or_insert_with(|| Series::new(metric_name, label_name, num_events))
+                .or_insert_with(|| {
+                    Series::new(metric_name.clone(), metric_kind, label_name, num_events)
+                })
                 .push(value);
         }
 

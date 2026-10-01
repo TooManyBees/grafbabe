@@ -4,15 +4,17 @@ use std::time::Duration;
 #[derive(Debug, Serialize)]
 pub struct Series {
     pub name: String,
+    pub kind: &'static str,
     pub label: Option<String>,
     // Optional to accomodate for the fact that a metric might not exist for every time slice
     pub values: Vec<Option<f64>>,
 }
 
 impl Series {
-    pub fn new(name: String, label: Option<String>, capacity: usize) -> Self {
+    pub fn new(name: String, kind: &'static str, label: Option<String>, capacity: usize) -> Self {
         Series {
             name,
+            kind,
             label,
             values: Vec::with_capacity(capacity),
         }
