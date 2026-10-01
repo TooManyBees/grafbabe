@@ -57,7 +57,7 @@ pub fn get_metrics(
 
     let mut series: Vec<_> = {
         let mut statement = connection.prepare(
-            "SELECT metric_id, label_id, value
+            "SELECT metric_id, label_id, value, histogram_bucket
             FROM events
             LEFT JOIN metric_values ON events.id = metric_values.event_id
             INNER JOIN metrics ON metrics.id = metric_values.metric_id
@@ -72,8 +72,16 @@ pub fn get_metrics(
             let metric_id: IndexType = row.get(0)?;
             let label_id: Option<IndexType> = row.get(1)?;
             let value: Option<f64> = row.get(2)?;
+            let bucket_le: Option<f64> = row.get(3)?;
 
             let (metric_name, label_name) = metric_ids[&(metric_id, label_id)].clone();
+
+            let label_name = match (label_name.as_ref(), bucket_le) {
+                (Some(label), Some(le)) => Some(format!("{label},le={le}")),
+                (None, Some(le)) => Some(format!("le={le}")),
+                (Some(_), None) => label_name,
+                (None, None) => None,
+            };
 
             events
                 .entry((metric_name.clone(), label_name.clone()))

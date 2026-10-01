@@ -1,5 +1,7 @@
 use crate::database::{IndexType, now_ms};
-use prometheus_scraper::borrowed::{Counter, Info, LabelPair, MetricFamily, MetricValue};
+use prometheus_scraper::borrowed::{
+    BucketCount, Counter, Histogram, Info, LabelPair, MetricFamily, MetricValue,
+};
 use prometheus_scraper::owned::{MetricType, Number, UnsignedNumber};
 use rusqlite::{Connection, types::Value};
 use std::borrow::Cow;
@@ -29,8 +31,8 @@ pub fn store_snapshot(
     };
 
     let mut insert_statement = transaction.prepare(
-        "INSERT INTO metric_values (metric_id, label_id, event_id, value)
-        VALUES (?, ?, ?, ?);",
+        "INSERT INTO metric_values (metric_id, label_id, event_id, value, histogram_bucket)
+        VALUES (?, ?, ?, ?, ?);",
     )?;
 
     for family in snapshot {
@@ -42,7 +44,7 @@ pub fn store_snapshot(
         };
 
         for metric in &family.metric {
-            let value = match metric_value(&metric.value) {
+            let values = match metric_value(&metric.value) {
                 Ok(v) => v,
                 Err(t) => {
                     log::warn!(metric_type:? = t; "Skipping unsupported metric type");
@@ -56,7 +58,28 @@ pub fn store_snapshot(
                 Some(known_labels[&HashableLabels(&metric.label)])
             };
 
-            insert_statement.execute((metric_id, label_id, event_id, value))?;
+            match values {
+                SimplifiedValue::Single(value) => {
+                    insert_statement.execute((
+                        metric_id,
+                        label_id,
+                        event_id,
+                        value,
+                        None::<f64>,
+                    ))?;
+                }
+                SimplifiedValue::Histogram(vs) => {
+                    for (value, le) in vs {
+                        insert_statement.execute((
+                            metric_id,
+                            label_id,
+                            event_id,
+                            value,
+                            Some(le),
+                        ))?;
+                    }
+                }
+            }
         }
     }
 
@@ -79,8 +102,6 @@ pub fn store_snapshot(
 #[derive(Copy, Clone, Debug)]
 pub enum UnsupportedMetricType {
     Summary,
-    Histogram,
-    GaugeHistogram,
     NativeHistogram,
     HybridHistogram,
     StateSet,
@@ -92,36 +113,76 @@ pub fn metric_type(t: MetricType) -> Result<i64, UnsupportedMetricType> {
         MetricType::Gauge => Ok(1),
         MetricType::Summary => Ok(2),
         MetricType::Untyped => Ok(3),
-        MetricType::Histogram => Err(UnsupportedMetricType::Histogram), // 4
-        MetricType::GaugeHistogram => Err(UnsupportedMetricType::GaugeHistogram), // 5
+        MetricType::Histogram => Ok(4),
+        MetricType::GaugeHistogram => Ok(5),
         MetricType::NativeHistogram => Err(UnsupportedMetricType::NativeHistogram), // 6
         MetricType::HybridHistogram => Err(UnsupportedMetricType::HybridHistogram), // 7
-        MetricType::StateSet => Err(UnsupportedMetricType::StateSet),   // 8
+        MetricType::StateSet => Err(UnsupportedMetricType::StateSet),               // 8
         MetricType::Info => Ok(9),
     }
 }
 
-pub fn metric_value(v: &MetricValue) -> Result<f64, UnsupportedMetricType> {
+pub enum SimplifiedValue<'a> {
+    Single(f64),
+    Histogram(Box<dyn Iterator<Item = (f64, f64)> + 'a>),
+}
+
+impl<'a> From<f64> for SimplifiedValue<'a> {
+    fn from(v: f64) -> Self {
+        SimplifiedValue::Single(v)
+    }
+}
+
+impl<'a> From<i64> for SimplifiedValue<'a> {
+    fn from(v: i64) -> Self {
+        SimplifiedValue::Single(v as f64)
+    }
+}
+
+impl<'a> From<u64> for SimplifiedValue<'a> {
+    fn from(v: u64) -> Self {
+        SimplifiedValue::Single(v as f64)
+    }
+}
+
+impl<'a> From<&'a BucketCount<'a>> for SimplifiedValue<'a> {
+    fn from(bc: &'a BucketCount<'a>) -> Self {
+        match bc {
+            BucketCount::Int { buckets, .. } => SimplifiedValue::Histogram(Box::new(
+                buckets
+                    .iter()
+                    .map(|b| (b.cumulative_count as f64, b.upper_bound)),
+            )),
+            BucketCount::Float { buckets, .. } => SimplifiedValue::Histogram(Box::new(
+                buckets.iter().map(|b| (b.cumulative_count, b.upper_bound)),
+            )),
+        }
+    }
+}
+
+pub fn metric_value<'a>(
+    v: &'a MetricValue<'a>,
+) -> Result<SimplifiedValue<'a>, UnsupportedMetricType> {
     match v {
         MetricValue::Counter(Counter {
             value: UnsignedNumber::Uint(n),
             ..
-        }) => Ok(*n as f64),
+        }) => Ok(SimplifiedValue::from(*n)),
         MetricValue::Counter(Counter {
             value: UnsignedNumber::Float(f),
             ..
-        }) => Ok(*f),
-        MetricValue::Gauge(Number::Int(n)) => Ok(*n as f64),
-        MetricValue::Gauge(Number::Float(f)) => Ok(*f),
-        MetricValue::Untyped(Number::Int(n)) => Ok(*n as f64),
-        MetricValue::Untyped(Number::Float(f)) => Ok(*f),
+        }) => Ok(SimplifiedValue::from(*f)),
+        MetricValue::Gauge(Number::Int(n)) => Ok(SimplifiedValue::from(*n)),
+        MetricValue::Gauge(Number::Float(f)) => Ok(SimplifiedValue::from(*f)),
+        MetricValue::Untyped(Number::Int(n)) => Ok(SimplifiedValue::from(*n)),
+        MetricValue::Untyped(Number::Float(f)) => Ok(SimplifiedValue::from(*f)),
         MetricValue::Summary(_) => Err(UnsupportedMetricType::Summary),
-        MetricValue::Histogram(_) => Err(UnsupportedMetricType::Histogram),
-        MetricValue::GaugeHistogram(_) => Err(UnsupportedMetricType::GaugeHistogram),
+        MetricValue::Histogram(Histogram { counts, .. }) => Ok(SimplifiedValue::from(counts)),
+        MetricValue::GaugeHistogram(Histogram { counts, .. }) => Ok(SimplifiedValue::from(counts)),
         MetricValue::NativeHistogram(_) => Err(UnsupportedMetricType::NativeHistogram),
         MetricValue::HybridHistogram { .. } => Err(UnsupportedMetricType::HybridHistogram),
         MetricValue::StateSet(_) => Err(UnsupportedMetricType::StateSet),
-        MetricValue::Info(_) => Ok(1f64),
+        MetricValue::Info(_) => Ok(SimplifiedValue::from(1f64)),
     }
 }
 

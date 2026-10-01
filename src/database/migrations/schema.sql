@@ -25,7 +25,8 @@ CREATE TABLE metric_values (
     metric_id INTEGER NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
     label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE,
     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    value REAL NOT NULL
+    value REAL NOT NULL,
+    histogram_bucket REAL
 ) STRICT;
 
 CREATE INDEX metric_values_by_event_id ON metric_values(event_id);
