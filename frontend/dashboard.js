@@ -179,13 +179,14 @@ const WINDOW_SELECT = document.getElementById("window-select");
 async function getMetrics(numSamples = 240, sampleWindow = "1h") {
   const metrics = await fetch(`/metrics?num_samples=${numSamples}&window=${sampleWindow}`).then(r => r.json());
   const accumulated = metrics.series.reduce((accum, series) => {
-    if (accum.get(series.name) == null) {
-      accum.set(series.name, []);
+    const key = { name: series.name, kind: series.kind };
+    if (accum.get(key) == null) {
+      accum.set(key, []);
     }
-    accum.get(series.name).push(series);
+    accum.get(key).push(series);
     return accum;
   }, new Map());
-  const grouped = Array.from(accumulated.entries()).map(([name, series]) => ({ name, series }));
+  const grouped = Array.from(accumulated.entries()).map(([{ name, kind }, series]) => ({ name, kind, series }));
 
   return {
     timestamps: metrics.timestamps,
