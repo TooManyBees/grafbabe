@@ -213,15 +213,16 @@ function datasetsGauge(timestamps, metric) {
 
 function datasetsCounter(timestamps, metric) {
   const COLORS = [
-    'rgb(54, 162, 235)', // blue
-    'rgb(255, 99, 132)', // red
-    'rgb(255, 159, 64)', // orange
-    'rgb(255, 205, 86)', // yellow
-    'rgb(75, 192, 192)', // green
-    'rgb(153, 102, 255)', // purple
-    'rgb(201, 203, 207)' // grey
+    'rgb(54, 162, 235)',
+    'rgb(255, 99, 132)',
+    'rgb(255, 159, 64)',
+    'rgb(255, 225, 86)',
+    'rgb(75, 192, 192)',
+    'rgb(153, 102, 255)',
+    'rgb(201, 203, 207)',
+    'rgb(62, 38, 248)',
+    'rgb(214, 120, 230)',
   ];
-
 
   return metric.series.map((series, i) => {
     let lastValue = NaN;
