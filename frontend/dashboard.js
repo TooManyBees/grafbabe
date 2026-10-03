@@ -226,9 +226,6 @@ function datasetsCounter(timestamps, metric) {
   return metric.series.map((series, i) => {
     let lastValue = NaN;
     const data = series.values.map((event, n) => {
-      if (metric.name === "qmk_garbage_generated") {
-        console.debug(event);
-      }
       let delta = event - lastValue;
       lastValue = event;
       return {
