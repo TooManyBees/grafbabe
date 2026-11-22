@@ -185,7 +185,7 @@ async function getMetrics(numSamples = 240, sampleWindow = "1h") {
     accum.get(series.name).push(series);
     return accum;
   }, new Map());
-  const grouped = Array.from(accumulated.entries()).map(([name, series]) => ({ name, series }));
+  const grouped = Array.from(accumulated.entries()).map(([name, series]) => ({ name, kind: series[0].kind, series }));
 
   return {
     timestamps: metrics.timestamps,
@@ -197,7 +197,7 @@ Chart.defaults.font.family = "sans-serif";
 
 const CHARTS = window.CHARTS = new Map();
 
-function datasets(timestamps, metric) {
+function datasetsGauge(timestamps, metric) {
   return metric.series.map(series => {
     const data = series.values.map((event, n) => ({
       x: timestamps[n],
@@ -211,6 +211,75 @@ function datasets(timestamps, metric) {
   });
 }
 
+function datasetsCounter(timestamps, metric) {
+  const COLORS = [
+    'rgb(54, 162, 235)',
+    'rgb(255, 99, 132)',
+    'rgb(255, 159, 64)',
+    'rgb(255, 225, 86)',
+    'rgb(75, 192, 192)',
+    'rgb(153, 102, 255)',
+    'rgb(201, 203, 207)',
+    'rgb(62, 38, 248)',
+    'rgb(214, 120, 230)',
+  ];
+
+  return metric.series.map((series, i) => {
+    let lastValue = NaN;
+    const data = series.values.map((event, n) => {
+      let delta = event - lastValue;
+      lastValue = event;
+      return {
+        x: timestamps[n],
+        y: delta,
+      }
+    });
+    const dataset = {
+      data,
+      barPercentage: 1,
+      categoryPercentage: 1,
+      borderSkipped: true,
+      backgroundColor: COLORS[i % COLORS.length],
+    };
+    if (series.label) {
+      dataset.label = series.label;
+    }
+    return dataset;
+  });
+}
+
+function datasetsFunction(metric) {
+  switch (metric.kind) {
+    case "counter":
+    case "untyped":
+    case "histogram":
+      return datasetsCounter;
+    case "gauge":
+    case "gaugeHistogram":
+      return datasetsGauge;
+    case "info":
+      // TODO implement this
+    default:
+      return datasetsCounter;
+  }
+}
+
+function chartType(metric) {
+  switch (metric.kind) {
+  case "counter":
+  case "untyped":
+    return "bar";
+  case "gauge":
+  case "gaugeHistogram":
+  case "histogram":
+    return "line";
+  case "info":
+    // TODO implement this
+  default:
+    return "line";
+  }
+}
+
 function createChart(timestamps, metric) {
   const rootElement = document.getElementById("dashboards");
   const canvas = document.createElement("canvas");
@@ -220,12 +289,15 @@ function createChart(timestamps, metric) {
   rootElement.appendChild(container);
   const ctx = canvas.getContext("2d");
 
+  const type = chartType(metric);
+  const datasets = datasetsFunction(metric)(timestamps, metric);
+
   const chart = new Chart(ctx, {
-    type: "line",
+    type,
     normalized: true,
     parsing: false,
     data: {
-      datasets: datasets(timestamps, metric),
+      datasets,
     },
     options: {
       responsive: true, 
@@ -246,6 +318,7 @@ function createChart(timestamps, metric) {
       },
       scales: {
         x: {
+          stacked: true,
           parser: false,
           type: "time",
           time: {
@@ -260,7 +333,9 @@ function createChart(timestamps, metric) {
             },
           },
         },
-        y: {},
+        y: {
+          stacked: true,
+        },
       },
     },
   });
@@ -282,7 +357,7 @@ async function render(sampleWindow) {
       chart = createChart(response.timestamps, metric);
       CHARTS.set(metric.name, chart);
     } else {
-      chart.data.datasets = datasets(response.timestamps, metric);
+      chart.data.datasets = datasetsFunction(metric)(response.timestamps, metric);
       chart.update();
     }
   }

@@ -13,7 +13,6 @@ pub fn get_mock_data(mock_data: &[MetricFamily], num_samples: usize, window: Win
         .map(|n| now - time_slice * (num_samples as u32 - n))
         .map(|time| time.duration_since(SystemTime::UNIX_EPOCH).unwrap())
         .map(|duration| duration.as_millis() as i64)
-        .rev()
         .collect();
 
     let fraction = window
@@ -79,6 +78,7 @@ fn extrapolate_from_value(fraction: f64, value: f64, num_samples: usize) -> Vec<
     (0..num_samples as u64)
         .map(|n| value - step_amount * (n as f64))
         .map(Some)
+        .rev()
         .collect()
 }
 
